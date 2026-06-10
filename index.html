@@ -185,6 +185,7 @@ function pList(){
   return `<header><h1>投資理由ノート</h1><div class="hr"><span>RINOTE</span><button data-a="logout">ログアウト</button></div></header>
   ${S.info?`<div class="info">${esc(S.info)}</div>`:''}
   <div class="card" style="padding:6px 16px">${body}</div>
+  ${S.recs.length?`<p class="hint" style="text-align:center">判子の意味 ── 生：理由が生きてる ・ 揺：揺らいでる ・ 崩：崩れた ・ 見送：見送り</p>`:''}
   <p class="foot">本アプリは投資助言ではありません。売買の推奨・株価予測は行いません。</p>
   <button class="btn fab" data-a="new">銘柄を記録する</button>`;
 }
@@ -239,9 +240,10 @@ function pResult(){
     </div>`:''}
   </div>
   ${opts.length?`<div class="card">
-    <p class="lbl">この理由の中身、近いものがあればタップ</p>
+    <p class="lbl">理由をもう少し具体的にしませんか</p>
+    <p style="font-size:13px;color:var(--sub);margin-bottom:10px">いまの理由はやや抽象的なので、次の決算で確かめにくい状態です。近いものをタップすると、上の「あなたの理由」が置き換わります。</p>
     <div style="display:flex;flex-direction:column;gap:8px">
-      ${opts.map(o=>`<button class="chip wide" data-opt="${esc(o)}">${esc(o)}</button>`).join('')}
+      ${opts.map(o=>`<button class="chip wide${d.reason===o?' on':''}" data-opt="${esc(o)}">${esc(o)}</button>`).join('')}
     </div></div>`:''}
   <p class="lbl" style="margin:4px 2px 8px">考えは変わりましたか</p>
   <button class="btn" data-a="proceed">このまま進む</button>
@@ -348,9 +350,13 @@ function pDetail(){
 }
 function bind(){
   document.querySelectorAll('[data-a]').forEach(el=>el.onclick=()=>act(el.dataset.a));
-  document.querySelectorAll('[data-id]').forEach(el=>el.onclick=()=>{S.did=el.dataset.id;S.err=null;S.rres=null;S.view='detail';render()});
+  document.querySelectorAll('[data-id]').forEach(el=>el.onclick=()=>{S.did=el.dataset.id;S.err=null;S.info=null;S.rres=null;S.view='detail';render()});
   document.querySelectorAll('[data-per]').forEach(el=>el.onclick=()=>{gForm();S.d.period=el.dataset.per;render()});
-  document.querySelectorAll('[data-opt]').forEach(el=>el.onclick=()=>{S.d.reason=el.dataset.opt;S.view='confirm';render()});
+  document.querySelectorAll('[data-opt]').forEach(el=>el.onclick=()=>{
+    const o=el.dataset.opt;
+    S.d.reason=(S.d.reason===o&&S.d.origReason)?S.d.origReason:o;
+    render();
+  });
   document.querySelectorAll('[data-sig]').forEach(el=>el.onclick=()=>{gConfirm();S.d.signal=S.d.signal===el.dataset.sig?'':el.dataset.sig;render()});
   document.querySelectorAll('[data-st]').forEach(el=>el.onclick=()=>stamp(el.dataset.st));
 }
@@ -406,6 +412,7 @@ async function act(a){
   else if(a==='recheck'){await doRecheck()}
   else if(a==='re-close'){await pushCheck('答え合わせ');S.rres=null;render()}
   else if(a==='del'){
+    if(!confirm('この記録を削除します。照合の履歴も消えますが、よろしいですか？'))return;
     await sb.from('records').delete().eq('id',S.did);
     await loadRecs();S.view='list';render();
   }
@@ -413,7 +420,7 @@ async function act(a){
 async function doCheck(){
   if(!S.d.name||!S.d.reason){S.err='銘柄と理由のふたつを先に埋めてください。';S.view='form';render();return}
   S.err=null;S.view='checking';render();
-  try{S.res=await api('check',S.d);S.view='result'}
+  try{S.res=await api('check',S.d);S.d.origReason=S.d.reason;S.view='result'}
   catch(e){S.err=e.message;S.view='form'}
   render();
 }
@@ -426,14 +433,18 @@ async function doRecheck(){
 }
 async function persist(decision,mioWhy){
   const d=S.d,r=S.res||{};
-  await sb.from('records').insert({
+  const {error}=await sb.from('records').insert({
     name:d.name,
     reason:decision==='見送り'?mioWhy:d.reason,
     decision,period:d.period||'',anxiety:d.anxiety||'',signal:d.signal||'',
-    checks:[{ts:Date.now(),status:decision==='見送り'?'見送り':null,
+    checks:[{ts:Date.now(),status:decision==='見送り'?'見送り':'生きてる',
       conclusion:r.conclusion||'',facts:r.facts||[],basis:r.facts_basis||''}]
   });
+  if(error){S.err='保存に失敗しました。通信環境を確認して、もう一度お試しください。';render();return;}
   await loadRecs();
+  S.info=decision==='見送り'
+    ?`「${d.name}」を見送りとして記録しました。あとで「答え合わせ」ができます。`
+    :`「${d.name}」を記録しました。次の決算が出たら、もう一度照合して理由を確かめましょう。`;
   S.view='list';S.d=null;S.res=null;render();
 }
 async function pushCheck(st){
