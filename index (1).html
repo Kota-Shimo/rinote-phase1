@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>投資理由ノート</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@500;600&family=Noto+Sans+JP:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --paper:#FAF9F6;--card:#FFFFFF;--ink:#22242A;--sub:#6B6F76;--faint:#9A9EA5;
+  --indigo:#2E4A6B;--indigo-bg:#EDF1F6;--line:#E4E2DC;
+  --alive:#1D6E5A;--alive-bg:#E7F2EE;
+  --shaky:#9A6A14;--shaky-bg:#F8EFDC;
+  --broken:#A8402F;--broken-bg:#F8E8E4;
+  --serif:'Noto Serif JP',serif;--sans:'Noto Sans JP',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased}
+.wrap{max-width:480px;margin:0 auto;padding:20px 16px 100px}
+header{display:flex;align-items:baseline;justify-content:space-between;padding:6px 2px 20px}
+header h1{font-family:var(--serif);font-size:19px;font-weight:600;letter-spacing:.06em;color:var(--indigo)}
+header .hr{display:flex;gap:10px;align-items:baseline}
+header span{font-size:11px;color:var(--faint);letter-spacing:.08em}
+header button{background:none;border:none;font-size:11px;color:var(--sub);cursor:pointer;font-family:var(--sans);text-decoration:underline}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+.lbl{font-size:12px;color:var(--sub);margin-bottom:6px;letter-spacing:.04em}
+input,textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:11px 12px;font-size:15px;font-family:var(--sans);background:var(--card);color:var(--ink)}
+input:focus,textarea:focus{outline:none;border-color:var(--indigo)}
+textarea{resize:none;line-height:1.6}
+.field{margin-bottom:14px}
+.btn{display:block;width:100%;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:500;font-family:var(--sans);cursor:pointer;background:var(--indigo);color:#fff;margin-bottom:8px}
+.btn:active{transform:scale(.985)}
+.btn.ghost{background:transparent;color:var(--indigo);border:1.5px solid var(--indigo)}
+.btn.quiet{background:transparent;color:var(--sub);border:none;font-size:13px;padding:8px}
+.btn:disabled{opacity:.4;cursor:default}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:7px 14px;font-size:13px;color:var(--ink);cursor:pointer;font-family:var(--sans);line-height:1.5}
+.chip.on{border-color:var(--indigo);background:var(--indigo-bg);color:var(--indigo);font-weight:500}
+.chip.wide{border-radius:10px;width:100%;text-align:left}
+.note-row{display:flex;gap:12px;align-items:flex-start;padding:14px 2px;border-bottom:1px solid var(--line);cursor:pointer}
+.note-row:last-child{border-bottom:none}
+.hanko{flex:none;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:16px;font-weight:600;transform:rotate(-4deg);border:2px solid}
+.hanko.alive{color:var(--alive);border-color:var(--alive);background:var(--alive-bg)}
+.hanko.shaky{color:var(--shaky);border-color:var(--shaky);background:var(--shaky-bg)}
+.hanko.broken{color:var(--broken);border-color:var(--broken);background:var(--broken-bg)}
+.hanko.none{color:var(--faint);border-color:var(--line);background:var(--paper);font-size:10px;transform:none;font-family:var(--sans);text-align:center;line-height:1.3}
+.hanko.skip{color:var(--sub);border-color:var(--sub);background:var(--paper);font-size:12px}
+.nm{flex:1;min-width:0}
+.nm-name{font-weight:500;font-size:15px}
+.nm-reason{font-size:13px;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nm-meta{font-size:11px;color:var(--faint);margin-top:2px}
+.empty{text-align:center;padding:48px 12px;color:var(--sub)}
+.empty b{font-family:var(--serif);font-size:17px;color:var(--ink);display:block;margin-bottom:8px}
+.fab{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);width:calc(100% - 64px);max-width:416px;box-shadow:0 4px 16px rgba(34,36,42,.2)}
+.back{background:none;border:none;font-size:13px;color:var(--sub);cursor:pointer;font-family:var(--sans);padding:0 0 12px;display:block}
+.kicker{font-size:11px;color:var(--faint);letter-spacing:.1em;margin-bottom:4px}
+h2{font-family:var(--serif);font-size:18px;font-weight:600;margin-bottom:14px}
+.quote{border-left:3px solid var(--indigo);padding:4px 0 4px 12px;font-size:14px;margin:8px 0}
+.basis-tag{display:inline-block;font-size:11px;color:var(--sub);background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:2px 8px;margin-top:6px}
+.fact-list{list-style:none;margin:6px 0 0}
+.fact-list li{font-size:14px;padding:5px 0;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:baseline}
+.fact-list li:last-child{border:none}
+.fact-list li::before{content:"▸";color:var(--indigo);flex:none;font-size:12px}
+.caution-list{list-style:none;margin:6px 0 0}
+.caution-list li{font-size:14px;padding:5px 0;display:flex;gap:8px;align-items:baseline}
+.caution-list li::before{content:"！";color:var(--shaky);flex:none;font-size:12px;font-weight:600}
+.sec{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--indigo);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.wait{text-align:center;padding:48px 16px}
+.wait .wname{font-family:var(--serif);font-size:18px;margin-bottom:12px}
+.wait p{color:var(--sub);font-size:13px;margin-top:8px}
+.err{background:var(--broken-bg);color:var(--broken);border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+.info{background:var(--indigo-bg);color:var(--indigo);border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:12px}
+.buy-links{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.buy-link{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;text-decoration:none;color:var(--ink);font-size:14px}
+.buy-link:hover{border-color:var(--indigo)}
+.buy-link span{font-size:11px;color:var(--faint)}
+.notif-box{background:var(--indigo-bg);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--indigo);margin-top:12px;line-height:1.7}
+.notif-box input{margin-top:8px;background:#fff}
+.notif-box .ok{font-weight:500;margin-top:8px}
+.stamp-row{display:flex;gap:8px;margin-top:10px}
+.stamp-btn{flex:1;border-radius:10px;padding:10px 4px;font-size:13px;font-family:var(--sans);cursor:pointer;border:1px solid var(--line);background:var(--card)}
+.stamp-btn.alive{color:var(--alive);border-color:var(--alive)}
+.stamp-btn.shaky{color:var(--shaky);border-color:var(--shaky)}
+.stamp-btn.broken{color:var(--broken);border-color:var(--broken)}
+.hist-item{padding:11px 0;border-bottom:1px solid var(--line);font-size:13px}
+.hist-item:last-child{border:none}
+.hist-top{display:flex;justify-content:space-between;margin-bottom:4px}
+.foot{font-size:11px;color:var(--faint);text-align:center;padding:20px 12px 0;line-height:1.9}
+.hint{font-size:11px;color:var(--faint);margin-top:6px;line-height:1.6}
+.login-wrap{max-width:380px;margin:10vh auto 0;padding:0 16px}
+.login-logo{text-align:center;font-family:var(--serif);font-size:24px;font-weight:600;color:var(--indigo);letter-spacing:.08em;margin-bottom:6px}
+.login-sub{text-align:center;font-size:13px;color:var(--sub);margin-bottom:24px}
+@media(prefers-reduced-motion:reduce){.spinner{animation:none}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ====== 設定（Supabaseの値に置き換えてください） ======
+const SUPABASE_URL = "https://YOUR-PROJECT.supabase.co";
+const SUPABASE_ANON_KEY = "YOUR-ANON-KEY";
+// ====================================================
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const PERIODS=['1年未満','1〜5年','5年以上','決めてない'];
+const BROKERS=[
+  ['SBI証券','https://www.sbisec.co.jp/'],
+  ['楽天証券','https://www.rakuten-sec.co.jp/'],
+  ['マネックス証券','https://www.monex.co.jp/']
+];
+let S={session:null,recs:[],view:'list',d:null,res:null,err:null,info:null,did:null,rres:null,rloading:false,notifSaved:false,loginMsg:null,remaining:null};
+
+function fmt(ts){const d=new Date(ts);return d.getFullYear()+'.'+(d.getMonth()+1)+'.'+d.getDate()}
+function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function lastStatus(r){const c=r.checks;return c&&c.length?c[c.length-1].status:null}
+function hanko(r){
+  if(r.decision==='見送り')return['skip','見送'];
+  const s=lastStatus(r);
+  if(s==='生きてる')return['alive','生'];
+  if(s==='揺らいでる')return['shaky','揺'];
+  if(s==='崩れた')return['broken','崩'];
+  return['none','未\n判定'];
+}
+async function loadRecs(){
+  const {data,error}=await sb.from('records').select('*').order('created_at',{ascending:true});
+  if(!error)S.recs=data||[];
+}
+async function api(kind,data){
+  const token=S.session.access_token;
+  const res=await fetch('/api/check',{
+    method:'POST',
+    headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
+    body:JSON.stringify({kind,data})
+  });
+  const out=await res.json();
+  if(!res.ok)throw new Error(out.error||'照合に失敗しました');
+  if(typeof out.remaining==='number')S.remaining=out.remaining;
+  return out.result;
+}
+function render(){document.getElementById('app').innerHTML=S.session?`<div class="wrap">${page()}</div>`:pLogin();bind()}
+function page(){
+  const v=S.view;
+  if(v==='form')return pForm();
+  if(v==='checking')return pWait();
+  if(v==='result')return pResult();
+  if(v==='rewrite')return pRewrite();
+  if(v==='miokuri')return pMiokuri();
+  if(v==='confirm')return pConfirm();
+  if(v==='detail')return pDetail();
+  return pList();
+}
+function pLogin(){
+  return `<div class="login-wrap">
+    <p class="login-logo">投資理由ノート</p>
+    <p class="login-sub">理由を記録し、事実と照らすノート</p>
+    ${S.loginMsg?`<div class="info">${esc(S.loginMsg)}</div>`:''}
+    ${S.err?`<div class="err">${esc(S.err)}</div>`:''}
+    <div class="card">
+      <div class="field"><p class="lbl">メールアドレス</p><input id="lemail" type="email" placeholder="you@example.com"></div>
+      <button class="btn" data-a="login">ログインリンクを送る</button>
+      <p class="hint">パスワードは不要です。届いたメールのリンクを開くとログインできます。</p>
+    </div>
+    <p class="foot">本アプリは投資助言ではありません。売買の推奨・株価予測は行いません。</p>
+  </div>`;
+}
+function pList(){
+  let body;
+  if(!S.recs.length){
+    body=`<div class="empty"><b>最初の1ページは白紙です</b><p>気になる銘柄と、その理由をひとこと。<br>30秒で最初の記録ができます。</p></div>`;
+  }else{
+    body=S.recs.slice().reverse().map(r=>{
+      const[c,ch]=hanko(r);
+      return `<div class="note-row" data-id="${r.id}">
+        <div class="hanko ${c}">${ch}</div>
+        <div class="nm">
+          <p class="nm-name">${esc(r.name)}</p>
+          <p class="nm-reason">「${esc(r.reason)}」</p>
+          <p class="nm-meta">${fmt(r.created_at)} ・ ${esc(r.decision)} ・ 照合${(r.checks||[]).length}回</p>
+        </div></div>`;
+    }).join('');
+  }
+  return `<header><h1>投資理由ノート</h1><div class="hr"><span>RINOTE</span><button data-a="logout">ログアウト</button></div></header>
+  ${S.info?`<div class="info">${esc(S.info)}</div>`:''}
+  <div class="card" style="padding:6px 16px">${body}</div>
+  <p class="foot">本アプリは投資助言ではありません。売買の推奨・株価予測は行いません。</p>
+  <button class="btn fab" data-a="new">銘柄を記録する</button>`;
+}
+function pForm(){
+  const d=S.d;
+  return `<button class="back" data-a="home">← ノートに戻る</button>
+  <p class="kicker">1 / 3 ── 入力</p>
+  <h2>気になっている銘柄について</h2>
+  ${S.err?`<div class="err">${esc(S.err)}</div>`:''}
+  <div class="card">
+    <div class="field"><p class="lbl">銘柄名または証券コード</p><input id="fn" type="text" placeholder="例：トヨタ自動車、7203、Amazon" value="${esc(d.name)}"></div>
+    <div class="field"><p class="lbl">検討している理由</p><textarea id="fr" rows="2" placeholder="例：AIが伸びると思うから">${esc(d.reason)}</textarea></div>
+    <div class="field"><p class="lbl">どれくらい持つつもりですか</p>
+      <div class="chips">${PERIODS.map(p=>`<button class="chip${d.period===p?' on':''}" data-per="${p}">${p}</button>`).join('')}</div>
+    </div>
+    <div class="field"><p class="lbl">不安な点（あれば）</p><input id="fa" type="text" placeholder="例：今の株価が高いかもしれない" value="${esc(d.anxiety)}"></div>
+  </div>
+  <button class="btn" data-a="go">事実と照らす</button>
+  ${S.remaining!==null?`<p class="hint" style="text-align:center">本日の残り照合回数：${S.remaining}回</p>`:''}`;
+}
+function pWait(){
+  return `<div class="wait">
+    <p class="wname">${esc(S.d.name)}</p>
+    <p><span class="spinner"></span>最新の決算・開示を確認しています</p>
+    <p>「${esc(S.d.reason)}」と照らし合わせます</p>
+  </div>`;
+}
+function pResult(){
+  const d=S.d,r=S.res||{};
+  const facts=(r.facts||[]).filter(Boolean).map(f=>`<li>${esc(f)}</li>`).join('');
+  const cautions=(r.cautions||[]).filter(Boolean).map(c=>`<li>${esc(c)}</li>`).join('');
+  const opts=(r.options||[]).filter(Boolean);
+  return `<p class="kicker">2 / 3 ── 照合</p>
+  <h2>${esc(d.name)}</h2>
+  ${S.err?`<div class="err">${esc(S.err)}</div>`:''}
+  <div class="card">
+    <p class="lbl">あなたの理由</p>
+    <div class="quote">「${esc(d.reason)}」</div>
+    <p class="lbl" style="margin-top:12px">決算に照らした結論</p>
+    <p style="font-size:14px">${esc(r.conclusion||'')}</p>
+    ${facts?`<ul class="fact-list">${facts}</ul>`:''}
+    ${r.facts_basis?`<span class="basis-tag">出典：${esc(r.facts_basis)}</span>`:''}
+    ${r.anxiety_answer?`<div class="sec">
+      <p class="lbl">あなたの不安「${esc(d.anxiety)}」について</p>
+      <p style="font-size:14px">${esc(r.anxiety_answer)}</p>
+      ${r.anxiety_basis?`<span class="basis-tag">出典：${esc(r.anxiety_basis)}</span>`:''}
+    </div>`:''}
+    ${cautions?`<div class="sec">
+      <p class="lbl">購入前に知っておくべきこと</p>
+      <ul class="caution-list">${cautions}</ul>
+      ${r.cautions_basis?`<span class="basis-tag">出典：${esc(r.cautions_basis)}</span>`:''}
+    </div>`:''}
+  </div>
+  ${opts.length?`<div class="card">
+    <p class="lbl">この理由の中身、近いものがあればタップ</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${opts.map(o=>`<button class="chip wide" data-opt="${esc(o)}">${esc(o)}</button>`).join('')}
+    </div></div>`:''}
+  <p class="lbl" style="margin:4px 2px 8px">考えは変わりましたか</p>
+  <button class="btn" data-a="proceed">このまま進む</button>
+  <button class="btn ghost" data-a="rewrite">購入理由を変えて再検討</button>
+  <button class="btn quiet" data-a="miokuri">今回は見送る</button>`;
+}
+function pRewrite(){
+  return `<button class="back" data-a="back-result">← 照合結果に戻る</button>
+  <p class="kicker">再検討</p>
+  <h2>内容を修正する</h2>
+  <div class="card">
+    <div class="field"><p class="lbl">銘柄名または証券コード</p><input id="fn" type="text" value="${esc(S.d.name)}"></div>
+    <div class="field"><p class="lbl">検討している理由</p><textarea id="fr" rows="2">${esc(S.d.reason)}</textarea></div>
+    <div class="field"><p class="lbl">保有期間</p>
+      <div class="chips">${PERIODS.map(p=>`<button class="chip${S.d.period===p?' on':''}" data-per="${p}">${p}</button>`).join('')}</div>
+    </div>
+    <div class="field"><p class="lbl">不安な点</p><input id="fa" type="text" value="${esc(S.d.anxiety)}"></div>
+  </div>
+  <button class="btn" data-a="go">この内容で再照合</button>`;
+}
+function pMiokuri(){
+  return `<button class="back" data-a="back-result">← 照合結果に戻る</button>
+  <p class="kicker">見送り</p>
+  <h2>今回は見送る</h2>
+  <div class="card">
+    <p class="lbl">見送り理由をひとこと（あとで「答え合わせ」ができます）</p>
+    <input id="fm" type="text" placeholder="例：株価がまだ高い気がするから">
+  </div>
+  <button class="btn" data-a="mio-save">見送りとして記録する</button>
+  <button class="btn quiet" data-a="mio-none">理由なしで見送る</button>`;
+}
+function pConfirm(){
+  const d=S.d,r=S.res||{};
+  const sigs=(r.signal_suggestions||[]).filter(Boolean);
+  return `<p class="kicker">3 / 3 ── 条件の確定</p>
+  <h2>この理由を、約束にする</h2>
+  <div class="card">
+    <p class="lbl">確定した理由</p>
+    <div class="quote">「${esc(d.reason)}」</div>
+  </div>
+  <div class="card">
+    <p class="lbl">何が起きたら見直しますか（売却を考える条件）</p>
+    ${sigs.length?`<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
+      ${sigs.map(s=>`<button class="chip wide${d.signal===s?' on':''}" data-sig="${esc(s)}">${esc(s)}</button>`).join('')}
+    </div>`:''}
+    <textarea id="fsig" rows="2" placeholder="自分の言葉で書く（例：買値から20%下回ったら）">${esc(d.customSignal||'')}</textarea>
+    <p class="hint">決算で確認できる条件は次回の照合でアプリが確認します。価格の条件は記録として残り、ご自身で見守る目印になります。</p>
+  </div>
+  <button class="btn" data-a="final-save">ノートに記録する</button>
+  <div class="card">
+    <p class="lbl">実際に購入する（証券会社のサイトへ）</p>
+    <div class="buy-links">
+      ${BROKERS.map(b=>`<a class="buy-link" href="${b[1]}" target="_blank" rel="noopener">${b[0]}<span>口座をお持ちの方 →</span></a>`).join('')}
+    </div>
+    <div class="notif-box">
+      通知について（準備中）<br>
+      見直しサインに関係する決算・開示が出た際の通知機能を準備しています。開始時のお知らせを希望する方はメールアドレスをどうぞ。
+      ${S.notifSaved?`<p class="ok">登録しました。開始時にお知らせします。</p>`
+        :`<input id="fmail" type="email" placeholder="メールアドレス（任意）">
+      <button class="btn ghost" data-a="notif-save" style="margin-top:8px;padding:9px">通知を希望する</button>`}
+    </div>
+  </div>`;
+}
+function pDetail(){
+  const r=S.recs.find(x=>x.id===S.did);
+  if(!r){S.view='list';setTimeout(render,0);return''}
+  const[c,ch]=hanko(r);
+  const isMio=r.decision==='見送り';
+  const hist=(r.checks||[]).slice().reverse().map(ck=>`<div class="hist-item">
+    <div class="hist-top"><strong>${esc(ck.status||'記録のみ')}</strong><span style="color:var(--faint)">${fmt(ck.ts)}</span></div>
+    <p>${esc(ck.conclusion||'')}</p>
+    ${(ck.facts||[]).length?`<ul class="fact-list">${ck.facts.map(f=>`<li>${esc(f)}</li>`).join('')}</ul>`:''}
+    ${ck.basis?`<span class="basis-tag">出典：${esc(ck.basis)}</span>`:''}
+  </div>`).join('');
+  const rr=S.rres;
+  return `<button class="back" data-a="home">← ノートに戻る</button>
+  <div class="card">
+    <div style="display:flex;gap:14px;align-items:center;margin-bottom:12px">
+      <div class="hanko ${c}">${ch}</div>
+      <div><p style="font-weight:500;font-size:16px">${esc(r.name)}</p>
+      <p style="font-size:12px;color:var(--faint)">${esc(r.decision)} ・ ${fmt(r.created_at)}${r.period?' ・ '+r.period:''}</p></div>
+    </div>
+    <p class="lbl">${isMio?'見送りの理由':'あなたの理由'}</p>
+    <div class="quote">「${esc(r.reason)}」</div>
+    ${r.signal?`<p class="lbl" style="margin-top:10px">見直しサイン</p><p style="font-size:14px">${esc(r.signal)}</p>`:''}
+    ${r.anxiety?`<p class="lbl" style="margin-top:10px">記録した不安</p><p style="font-size:14px">${esc(r.anxiety)}</p>`:''}
+  </div>
+  ${S.err?`<div class="err">${esc(S.err)}</div>`:''}
+  ${rr?`<div class="card">
+    <p class="lbl">${isMio?'答え合わせ ── 見送ったあと、何が起きたか':'最新の照合結果'}</p>
+    <p style="font-size:14px">${esc(rr.conclusion||'')}</p>
+    ${(rr.facts||[]).length?`<ul class="fact-list">${(rr.facts||[]).map(f=>`<li>${esc(f)}</li>`).join('')}</ul>`:''}
+    ${rr.basis?`<span class="basis-tag">出典：${esc(rr.basis)}</span>`:''}
+    ${!isMio?`<p class="lbl" style="margin-top:14px">この理由の判定を押してください</p>
+    <div class="stamp-row">
+      <button class="stamp-btn alive" data-st="生きてる">生きてる</button>
+      <button class="stamp-btn shaky" data-st="揺らいでる">揺らいでる</button>
+      <button class="stamp-btn broken" data-st="崩れた">崩れた</button>
+    </div>`:`<button class="btn quiet" data-a="re-close" style="margin-top:8px">記録して閉じる</button>`}
+  </div>`
+  :`<button class="btn" data-a="recheck" ${S.rloading?'disabled':''}>${S.rloading?'<span class="spinner"></span>確認中…':(isMio?'答え合わせをする':'もう一度照合する')}</button>`}
+  ${hist?`<div class="card"><p class="lbl">照合の履歴</p>${hist}</div>`:''}
+  <button class="btn quiet" data-a="del">この記録を削除</button>`;
+}
+function bind(){
+  document.querySelectorAll('[data-a]').forEach(el=>el.onclick=()=>act(el.dataset.a));
+  document.querySelectorAll('[data-id]').forEach(el=>el.onclick=()=>{S.did=el.dataset.id;S.err=null;S.rres=null;S.view='detail';render()});
+  document.querySelectorAll('[data-per]').forEach(el=>el.onclick=()=>{gForm();S.d.period=el.dataset.per;render()});
+  document.querySelectorAll('[data-opt]').forEach(el=>el.onclick=()=>{S.d.reason=el.dataset.opt;S.view='confirm';render()});
+  document.querySelectorAll('[data-sig]').forEach(el=>el.onclick=()=>{gConfirm();S.d.signal=S.d.signal===el.dataset.sig?'':el.dataset.sig;render()});
+  document.querySelectorAll('[data-st]').forEach(el=>el.onclick=()=>stamp(el.dataset.st));
+}
+function gForm(){
+  const fn=document.getElementById('fn'),fr=document.getElementById('fr'),fa=document.getElementById('fa');
+  if(fn)S.d.name=fn.value.trim();
+  if(fr)S.d.reason=fr.value.trim();
+  if(fa)S.d.anxiety=fa.value.trim();
+}
+function gConfirm(){
+  const fs=document.getElementById('fsig');
+  if(fs)S.d.customSignal=fs.value.trim();
+}
+async function act(a){
+  if(a==='login'){
+    const f=document.getElementById('lemail');
+    const email=f?f.value.trim():'';
+    if(!email){S.err='メールアドレスを入力してください。';render();return}
+    S.err=null;
+    const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin}});
+    S.loginMsg=error?null:'ログインリンクを送りました。メールを確認してください。';
+    S.err=error?'送信に失敗しました。アドレスを確認してください。':null;
+    render();
+  }
+  else if(a==='logout'){await sb.auth.signOut();S.session=null;S.recs=[];render()}
+  else if(a==='new'){S.d={name:'',reason:'',period:'',anxiety:'',signal:'',customSignal:''};S.res=null;S.err=null;S.info=null;S.notifSaved=false;S.view='form';render()}
+  else if(a==='home'){S.view='list';S.err=null;render()}
+  else if(a==='back-result'){S.view='result';render()}
+  else if(a==='go'){gForm();await doCheck()}
+  else if(a==='rewrite'){S.view='rewrite';render()}
+  else if(a==='proceed'){S.view='confirm';render()}
+  else if(a==='miokuri'){S.view='miokuri';render()}
+  else if(a==='mio-save'){
+    const f=document.getElementById('fm');
+    await persist('見送り',(f?f.value.trim():'')||'(理由未記入)');
+  }
+  else if(a==='mio-none'){await persist('見送り','(理由なし)')}
+  else if(a==='final-save'){
+    gConfirm();
+    if(S.d.customSignal)S.d.signal=S.d.customSignal;
+    await persist('記録');
+  }
+  else if(a==='notif-save'){
+    const f=document.getElementById('fmail');
+    const mail=f?f.value.trim():'';
+    if(mail){
+      await sb.from('notif_list').insert({email:mail});
+      S.notifSaved=true;render();
+    }
+  }
+  else if(a==='recheck'){await doRecheck()}
+  else if(a==='re-close'){await pushCheck('答え合わせ');S.rres=null;render()}
+  else if(a==='del'){
+    await sb.from('records').delete().eq('id',S.did);
+    await loadRecs();S.view='list';render();
+  }
+}
+async function doCheck(){
+  if(!S.d.name||!S.d.reason){S.err='銘柄と理由のふたつを先に埋めてください。';S.view='form';render();return}
+  S.err=null;S.view='checking';render();
+  try{S.res=await api('check',S.d);S.view='result'}
+  catch(e){S.err=e.message;S.view='form'}
+  render();
+}
+async function doRecheck(){
+  const r=S.recs.find(x=>x.id===S.did);
+  S.rloading=true;S.err=null;render();
+  try{S.rres=await api('recheck',r)}
+  catch(e){S.err=e.message}
+  S.rloading=false;render();
+}
+async function persist(decision,mioWhy){
+  const d=S.d,r=S.res||{};
+  await sb.from('records').insert({
+    name:d.name,
+    reason:decision==='見送り'?mioWhy:d.reason,
+    decision,period:d.period||'',anxiety:d.anxiety||'',signal:d.signal||'',
+    checks:[{ts:Date.now(),status:decision==='見送り'?'見送り':null,
+      conclusion:r.conclusion||'',facts:r.facts||[],basis:r.facts_basis||''}]
+  });
+  await loadRecs();
+  S.view='list';S.d=null;S.res=null;render();
+}
+async function pushCheck(st){
+  const rec=S.recs.find(x=>x.id===S.did);
+  if(!rec||!S.rres)return;
+  const checks=(rec.checks||[]).concat([{ts:Date.now(),status:st,
+    conclusion:S.rres.conclusion||'',facts:S.rres.facts||[],basis:S.rres.basis||''}]);
+  await sb.from('records').update({checks}).eq('id',rec.id);
+  await loadRecs();
+}
+async function stamp(st){await pushCheck(st);S.rres=null;render()}
+
+(async()=>{
+  const {data}=await sb.auth.getSession();
+  S.session=data.session;
+  sb.auth.onAuthStateChange(async(_e,session)=>{
+    S.session=session;
+    if(session){await loadRecs()}
+    render();
+  });
+  if(S.session)await loadRecs();
+  render();
+})();
+</script>
+</body>
+</html>
