@@ -283,7 +283,7 @@ function pConfirm(){
     <div class="quote">「${esc(d.reason)}」</div>
   </div>
   <div class="card">
-    <p class="lbl">何が起きたら見直しますか（売却を考える条件）</p>
+    <p class="lbl">何が起きたら見直しますか（売却を考える条件）<span style="color:var(--broken);margin-left:4px">必須</span></p>
     ${sigs.length?`<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
       ${sigs.map(s=>`<button class="chip wide${d.signal===s?' on':''}" data-sig="${esc(s)}">${esc(s)}</button>`).join('')}
     </div>`:''}
@@ -306,7 +306,7 @@ function pConfirm(){
   </div>`;
 }
 function pDetail(){
-  const r=S.recs.find(x=>x.id===S.did);
+  const r=S.recs.find(x=>String(x.id)===String(S.did));
   if(!r){S.view='list';setTimeout(render,0);return''}
   const[c,ch]=hanko(r);
   const isMio=r.decision==='見送り';
@@ -391,6 +391,8 @@ async function act(a){
   else if(a==='final-save'){
     gConfirm();
     if(S.d.customSignal)S.d.signal=S.d.customSignal;
+    if(!S.d.signal){S.err='売るときの見直し条件を入力してください。';render();return;}
+    S.err=null;
     await persist('記録');
   }
   else if(a==='notif-save'){
@@ -416,7 +418,7 @@ async function doCheck(){
   render();
 }
 async function doRecheck(){
-  const r=S.recs.find(x=>x.id===S.did);
+  const r=S.recs.find(x=>String(x.id)===String(S.did));
   S.rloading=true;S.err=null;render();
   try{S.rres=await api('recheck',r)}
   catch(e){S.err=e.message}
@@ -435,14 +437,20 @@ async function persist(decision,mioWhy){
   S.view='list';S.d=null;S.res=null;render();
 }
 async function pushCheck(st){
-  const rec=S.recs.find(x=>x.id===S.did);
-  if(!rec||!S.rres)return;
+  const rec=S.recs.find(x=>String(x.id)===String(S.did));
+  if(!rec||!S.rres)return false;
   const checks=(rec.checks||[]).concat([{ts:Date.now(),status:st,
     conclusion:S.rres.conclusion||'',facts:S.rres.facts||[],basis:S.rres.basis||''}]);
-  await sb.from('records').update({checks}).eq('id',rec.id);
+  const {error}=await sb.from('records').update({checks}).eq('id',rec.id);
+  if(error){S.err='判定の保存に失敗しました。再試行してください。';return false;}
   await loadRecs();
+  return true;
 }
-async function stamp(st){await pushCheck(st);S.rres=null;render()}
+async function stamp(st){
+  const ok=await pushCheck(st);
+  if(ok)S.rres=null;
+  render();
+}
 
 (async()=>{
   const {data}=await sb.auth.getSession();
