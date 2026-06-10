@@ -85,6 +85,10 @@ h2{font-family:var(--serif);font-size:18px;font-weight:600;margin-bottom:14px}
 .stamp-btn.alive{color:var(--alive);border-color:var(--alive)}
 .stamp-btn.shaky{color:var(--shaky);border-color:var(--shaky)}
 .stamp-btn.broken{color:var(--broken);border-color:var(--broken)}
+.stamp-btn.sel{font-weight:600}
+.stamp-btn.sel.alive{background:var(--alive-bg)}
+.stamp-btn.sel.shaky{background:var(--shaky-bg)}
+.stamp-btn.sel.broken{background:var(--broken-bg)}
 .hist-item{padding:11px 0;border-bottom:1px solid var(--line);font-size:13px}
 .hist-item:last-child{border:none}
 .hist-top{display:flex;justify-content:space-between;margin-bottom:4px}
@@ -292,6 +296,16 @@ function pConfirm(){
     <textarea id="fsig" rows="2" placeholder="自分の言葉で書く（例：買値から20%下回ったら）">${esc(d.customSignal||'')}</textarea>
     <p class="hint">決算で確認できる条件は次回の照合でアプリが確認します。価格の条件は記録として残り、ご自身で見守る目印になります。</p>
   </div>
+  <div class="card">
+    <p class="lbl">いまの理由の状態（判子を選ぶ）</p>
+    <div class="stamp-row">
+      ${['生きてる','揺らいでる','崩れた'].map((s,i)=>{
+        const cls=['alive','shaky','broken'][i];
+        return `<button class="stamp-btn ${cls}${(d.stamp||'生きてる')===s?' sel':''}" data-cst="${s}">${s}</button>`;
+      }).join('')}
+    </div>
+    <p class="hint">照合した直後なら「生きてる」のままで大丈夫です。記録したあとでも、いつでも変更できます。</p>
+  </div>
   <button class="btn" data-a="final-save">ノートに記録する</button>
   <div class="card">
     <p class="lbl">実際に購入する（証券会社のサイトへ）</p>
@@ -345,6 +359,16 @@ function pDetail(){
     </div>`:`<button class="btn quiet" data-a="re-close" style="margin-top:8px">記録して閉じる</button>`}
   </div>`
   :`<button class="btn" data-a="recheck" ${S.rloading?'disabled':''}>${S.rloading?'<span class="spinner"></span>確認中…':(isMio?'答え合わせをする':'もう一度照合する')}</button>`}
+  ${!isMio?`<div class="card">
+    <p class="lbl">判子を変更する（いまの理由の状態）</p>
+    <div class="stamp-row">
+      ${['生きてる','揺らいでる','崩れた'].map((s,i)=>{
+        const cls=['alive','shaky','broken'][i];
+        return `<button class="stamp-btn ${cls}${lastStatus(r)===s?' sel':''}" data-mst="${s}">${s}</button>`;
+      }).join('')}
+    </div>
+    <p class="hint">「崩れたな」と感じたら、照合しなくてもここで判子を変えられます。変更は履歴に残ります。</p>
+  </div>`:''}
   ${hist?`<div class="card"><p class="lbl">照合の履歴</p>${hist}</div>`:''}
   <button class="btn quiet" data-a="del">この記録を削除</button>`;
 }
@@ -359,6 +383,8 @@ function bind(){
   });
   document.querySelectorAll('[data-sig]').forEach(el=>el.onclick=()=>{gConfirm();S.d.signal=S.d.signal===el.dataset.sig?'':el.dataset.sig;render()});
   document.querySelectorAll('[data-st]').forEach(el=>el.onclick=()=>stamp(el.dataset.st));
+  document.querySelectorAll('[data-cst]').forEach(el=>el.onclick=()=>{gConfirm();S.d.stamp=el.dataset.cst;render()});
+  document.querySelectorAll('[data-mst]').forEach(el=>el.onclick=()=>manualStamp(el.dataset.mst));
 }
 function gForm(){
   const fn=document.getElementById('fn'),fr=document.getElementById('fr'),fa=document.getElementById('fa');
@@ -382,7 +408,7 @@ async function act(a){
     render();
   }
   else if(a==='logout'){await sb.auth.signOut();S.session=null;S.recs=[];render()}
-  else if(a==='new'){S.d={name:'',reason:'',period:'',anxiety:'',signal:'',customSignal:''};S.res=null;S.err=null;S.info=null;S.notifSaved=false;S.view='form';render()}
+  else if(a==='new'){S.d={name:'',reason:'',period:'',anxiety:'',signal:'',customSignal:'',stamp:'生きてる'};S.res=null;S.err=null;S.info=null;S.notifSaved=false;S.view='form';render()}
   else if(a==='home'){S.view='list';S.err=null;render()}
   else if(a==='back-result'){S.view='result';render()}
   else if(a==='go'){gForm();await doCheck()}
@@ -437,7 +463,7 @@ async function persist(decision,mioWhy){
     name:d.name,
     reason:decision==='見送り'?mioWhy:d.reason,
     decision,period:d.period||'',anxiety:d.anxiety||'',signal:d.signal||'',
-    checks:[{ts:Date.now(),status:decision==='見送り'?'見送り':'生きてる',
+    checks:[{ts:Date.now(),status:decision==='見送り'?'見送り':(d.stamp||'生きてる'),
       conclusion:r.conclusion||'',facts:r.facts||[],basis:r.facts_basis||''}]
   });
   if(error){S.err='保存に失敗しました。通信環境を確認して、もう一度お試しください。';render();return;}
@@ -460,6 +486,18 @@ async function pushCheck(st){
 async function stamp(st){
   const ok=await pushCheck(st);
   if(ok)S.rres=null;
+  render();
+}
+async function manualStamp(st){
+  const rec=S.recs.find(x=>String(x.id)===String(S.did));
+  if(!rec)return;
+  if(lastStatus(rec)===st)return;
+  const checks=(rec.checks||[]).concat([{ts:Date.now(),status:st,
+    conclusion:'自分で判子を変更しました',facts:[],basis:''}]);
+  const {error}=await sb.from('records').update({checks}).eq('id',rec.id);
+  if(error){S.err='判子の変更に失敗しました。再試行してください。';render();return;}
+  S.err=null;
+  await loadRecs();
   render();
 }
 
