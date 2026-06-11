@@ -50,6 +50,13 @@ textarea{resize:none;line-height:1.6}
 .nm-name{font-weight:500;font-size:15px}
 .nm-reason{font-size:13px;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nm-meta{font-size:11px;color:var(--faint);margin-top:2px}
+.row-right{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0}
+.need-check{font-size:10px;color:var(--shaky);font-weight:600}
+.match-dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex-shrink:0}
+.match-dot.ok{background:var(--alive)}
+.match-dot.part{background:var(--shaky)}
+.match-dot.ng{background:var(--broken)}
+.match-dot.na{background:var(--faint)}
 .empty{text-align:center;padding:48px 12px;color:var(--sub)}
 .empty b{font-family:var(--serif);font-size:17px;color:var(--ink);display:block;margin-bottom:8px}
 .fab{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);width:calc(100% - 64px);max-width:416px;box-shadow:0 4px 16px rgba(34,36,42,.2)}
@@ -72,10 +79,11 @@ h2{font-family:var(--serif);font-size:18px;font-weight:600;margin-bottom:14px}
 .match-badge.part{color:var(--shaky);border-color:var(--shaky);background:var(--shaky-bg)}
 .match-badge.ng{color:var(--broken);border-color:var(--broken);background:var(--broken-bg)}
 .match-badge.na{color:var(--sub);border-color:var(--line);background:var(--paper)}
-.flow-step{font-size:11px;color:var(--faint);letter-spacing:.08em;margin:2px 0 4px}
-.tldr{background:var(--indigo-bg);border-left:4px solid var(--indigo);border-radius:0 12px 12px 0;padding:14px 16px;margin-bottom:12px}
-.tldr-label{font-size:11px;color:var(--indigo);letter-spacing:.08em;font-weight:600;margin-bottom:4px}
-.tldr p{font-size:15px;line-height:1.8;color:var(--ink)}
+.sec-label{font-size:11px;font-weight:600;color:var(--indigo);letter-spacing:.1em;margin:0 0 6px;text-transform:uppercase}
+.summary-text{font-size:15px;line-height:1.8;color:var(--ink);margin:8px 0 16px}
+.filter-tabs{display:flex;gap:0;margin-bottom:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.filter-tab{flex:1;border:none;padding:9px 4px;font-size:13px;font-family:var(--sans);cursor:pointer;background:var(--card);color:var(--sub)}
+.filter-tab.on{background:var(--indigo);color:#fff;font-weight:500}
 .wp-item{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:8px;background:var(--card)}
 .wp-what{font-weight:500;font-size:14px}
 .wp-where{font-size:12px;color:var(--sub);margin-top:2px}
@@ -90,13 +98,6 @@ h2{font-family:var(--serif);font-size:18px;font-weight:600;margin-bottom:14px}
 .wait p{color:var(--sub);font-size:13px;margin-top:8px}
 .err{background:var(--broken-bg);color:var(--broken);border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:12px}
 .info{background:var(--indigo-bg);color:var(--indigo);border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:12px}
-.buy-links{display:flex;flex-direction:column;gap:8px;margin-top:4px}
-.buy-link{display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;text-decoration:none;color:var(--ink);font-size:14px}
-.buy-link:hover{border-color:var(--indigo)}
-.buy-link span{font-size:11px;color:var(--faint)}
-.notif-box{background:var(--indigo-bg);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--indigo);margin-top:12px;line-height:1.7}
-.notif-box input{margin-top:8px;background:#fff}
-.notif-box .ok{font-weight:500;margin-top:8px}
 .stamp-row{display:flex;gap:8px;margin-top:10px}
 .stamp-btn{flex:1;border-radius:10px;padding:10px 4px;font-size:13px;font-family:var(--sans);cursor:pointer;border:1px solid var(--line);background:var(--card)}
 .stamp-btn.alive{color:var(--alive);border-color:var(--alive)}
@@ -122,6 +123,22 @@ h2{font-family:var(--serif);font-size:18px;font-weight:600;margin-bottom:14px}
 .login-wrap{max-width:380px;margin:10vh auto 0;padding:0 16px}
 .login-logo{text-align:center;font-family:var(--serif);font-size:24px;font-weight:600;color:var(--indigo);letter-spacing:.08em;margin-bottom:6px}
 .login-sub{text-align:center;font-size:13px;color:var(--sub);margin-bottom:24px}
+.action-divider{border:none;border-top:1px solid var(--line);margin:12px 0 4px}
+.detail-header{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px}
+.detail-hanko{flex:none;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:13px;font-weight:600;transform:rotate(-4deg);border:2px solid}
+.detail-hanko.alive{color:var(--alive);border-color:var(--alive);background:var(--alive-bg)}
+.detail-hanko.shaky{color:var(--shaky);border-color:var(--shaky);background:var(--shaky-bg)}
+.detail-hanko.broken{color:var(--broken);border-color:var(--broken);background:var(--broken-bg)}
+.detail-hanko.none{color:var(--faint);border-color:var(--line);background:var(--paper);font-size:9px;transform:none;font-family:var(--sans);text-align:center;line-height:1.2}
+.detail-hanko.skip{color:var(--sub);border-color:var(--sub);background:var(--paper);font-size:11px}
+.stamp-pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.stamp-pill{border-radius:999px;padding:5px 12px;font-size:12px;font-family:var(--sans);cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--sub)}
+.stamp-pill.alive{color:var(--alive);border-color:var(--alive)}
+.stamp-pill.shaky{color:var(--shaky);border-color:var(--shaky)}
+.stamp-pill.broken{color:var(--broken);border-color:var(--broken)}
+.stamp-pill.sel.alive{background:var(--alive-bg);font-weight:600}
+.stamp-pill.sel.shaky{background:var(--shaky-bg);font-weight:600}
+.stamp-pill.sel.broken{background:var(--broken-bg);font-weight:600}
 @media(prefers-reduced-motion:reduce){.spinner{animation:none}}
 </style>
 </head>
@@ -140,7 +157,7 @@ const BROKERS=[
   ['楽天証券','https://www.rakuten-sec.co.jp/'],
   ['マネックス証券','https://www.monex.co.jp/']
 ];
-let S={session:null,recs:[],view:'list',d:null,res:null,err:null,info:null,did:null,rres:null,rloading:false,notifSaved:false,loginMsg:null,remaining:null,loginStep:'email',loginEmail:'',loginTab:'login',recheckOpen:false,recheckData:null};
+let S={session:null,recs:[],view:'list',d:null,res:null,err:null,info:null,did:null,rres:null,rloading:false,notifSaved:false,loginMsg:null,remaining:null,loginStep:'email',loginEmail:'',loginTab:'login',recheckOpen:false,recheckData:null,filter:'all'};
 
 function fmt(ts){const d=new Date(ts);return d.getFullYear()+'.'+(d.getMonth()+1)+'.'+d.getDate()}
 function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -218,23 +235,72 @@ function pLogin(){
   </div>`;
 }
 function pList(){
+  const now=Date.now();
+  const MS90=90*24*60*60*1000;
+
+  let filtered;
+  if(S.filter==='skip'){
+    filtered=S.recs.filter(r=>r.decision==='見送り');
+  }else if(S.filter==='active'){
+    filtered=S.recs.filter(r=>r.decision!=='見送り');
+  }else{
+    filtered=S.recs.slice();
+  }
+
   let body;
   if(!S.recs.length){
     body=`<div class="empty"><b>最初の1ページは白紙です</b><p>気になる銘柄と、その理由をひとこと。<br>30秒で最初の記録ができます。</p></div>`;
+  }else if(!filtered.length){
+    body=`<div class="empty"><p>該当する記録がありません</p></div>`;
   }else{
-    body=S.recs.slice().reverse().map(r=>{
+    body=filtered.slice().reverse().map(r=>{
       const[c,ch]=hanko(r);
+      const checks=r.checks||[];
+      const lastCheck=checks.length?checks[checks.length-1]:null;
+      const lastCheckDate=lastCheck?fmt(lastCheck.ts):'';
+      const checkCount=checks.length;
+      const isMio=r.decision==='見送り';
+
+      // last match_level dot
+      let dotHtml='';
+      if(lastCheck&&lastCheck.match_level){
+        let dotCls='na';
+        if(lastCheck.match_level==='一致')dotCls='ok';
+        else if(lastCheck.match_level==='一部一致')dotCls='part';
+        else if(lastCheck.match_level==='現時点の開示とは一致しない')dotCls='ng';
+        dotHtml=`<span class="match-dot ${dotCls}"></span>`;
+      }
+
+      // 要確認 indicator: last check older than 90 days, not 見送り
+      let needCheckHtml='';
+      if(!isMio&&lastCheck&&(now-lastCheck.ts)>MS90){
+        needCheckHtml=`<span class="need-check">要確認</span>`;
+      }
+
       return `<div class="note-row" data-id="${r.id}">
         <div class="hanko ${c}">${ch}</div>
         <div class="nm">
           <p class="nm-name">${esc(r.name)}</p>
           <p class="nm-reason">「${esc(r.reason)}」</p>
-          <p class="nm-meta">${fmt(r.created_at)} ・ ${esc(r.decision)} ・ 照合${(r.checks||[]).length}回</p>
-        </div></div>`;
+          <p class="nm-meta">${fmt(r.created_at)} ・ 照合${checkCount}回</p>
+        </div>
+        <div class="row-right">
+          ${dotHtml}
+          ${lastCheckDate?`<span style="font-size:10px;color:var(--faint)">${lastCheckDate}</span>`:''}
+          ${needCheckHtml}
+        </div>
+      </div>`;
     }).join('');
   }
+
+  const f=S.filter||'all';
   return `<header><h1>投資理由ノート</h1><div class="hr"><span>RINOTE</span><button data-a="logout">ログアウト</button></div></header>
   ${S.info?`<div class="info">${esc(S.info)}</div>`:''}
+  ${S.recs.length?`<div class="filter-tabs">
+    <button class="filter-tab${f==='all'?' on':''}" data-a="filter-all">すべて</button>
+    <button class="filter-tab${f==='active'?' on':''}" data-a="filter-active">検討中</button>
+    <button class="filter-tab${f==='skip'?' on':''}" data-a="filter-skip">見送り</button>
+  </div>`:''}
   <div class="card" style="padding:6px 16px">${body}</div>
   ${S.recs.length?`<p class="hint" style="text-align:center">判子の意味 ── 生：理由が生きてる ・ 揺：揺らいでる ・ 崩：崩れた ・ 見送：見送り</p>`:''}
   <p class="foot">本アプリは投資助言ではありません。売買の推奨・株価予測は行いません。</p>
@@ -278,10 +344,6 @@ function matchBadge(level){
   else if(level==='現時点の開示とは一致しない')cls='ng';
   return `<span class="match-badge ${cls}">${esc(level)}</span>`;
 }
-function tldrBox(summary){
-  if(!summary)return'';
-  return `<div class="tldr"><p class="tldr-label">つまり、どういうこと？</p><p>${esc(summary)}</p></div>`;
-}
 function watchItems(list){
   return (list||[]).filter(Boolean).map(w=>{
     const p=String(w).split('｜');
@@ -301,40 +363,40 @@ function pResult(){
   <h2>${esc(d.name)}</h2>
   ${S.err?`<div class="err">${esc(S.err)}</div>`:''}
   ${matchBadge(r.match_level)}
-  ${tldrBox(r.summary)}
+  ${r.summary?`<p class="summary-text">${esc(r.summary)}</p>`:''}
   <div class="card">
-    <p class="flow-step">STEP 1 ── あなたの理由</p>
+    <p class="sec-label">あなたの理由</p>
     <div class="quote">「${esc(d.reason)}」${r.reason_type?`<span class="type-badge">${typeLabel(r.reason_type)}</span>`:''}</div>
-    <div class="sec">
-      <p class="flow-step">STEP 2 ── 事実との照合（くわしく）</p>
-      <p style="font-size:14px">${esc(r.conclusion||'')}</p>
-      ${isC?`<p class="hint">気持ちの理由は事実と照合できないため、判定はしません。下のデータは参考情報です。</p>`:''}
-    </div>
-    ${facts?`<div class="sec">
-      <p class="flow-step">STEP 3 ── 見るべきもの</p>
-      <ul class="fact-list">${facts}</ul>
-      ${r.facts_basis?`<span class="basis-tag">出典：${esc(r.facts_basis)}</span>`:''}
-    </div>`:''}
-    ${sigs?`<div class="sec">
-      <p class="flow-step">STEP 4 ── この理由が崩れる条件</p>
-      <ul class="caution-list">${sigs}</ul>
-      <p class="hint">次の画面で、見直しの約束として記録できます。</p>
-    </div>`:''}
-    ${watches?`<div class="sec">
-      <p class="flow-step">STEP 5 ── 定点観測ポイント（何を・どこで・どうなったら注意）</p>
-      ${watches}
-    </div>`:''}
-    ${r.anxiety_answer?`<div class="sec">
-      <p class="lbl">あなたの不安「${esc(d.anxiety)}」について</p>
-      <p style="font-size:14px">${esc(r.anxiety_answer)}</p>
-      ${r.anxiety_basis?`<span class="basis-tag">出典：${esc(r.anxiety_basis)}</span>`:''}
-    </div>`:''}
-    ${cautions?`<div class="sec">
-      <p class="lbl">購入前に知っておくべきこと</p>
-      <ul class="caution-list">${cautions}</ul>
-      ${r.cautions_basis?`<span class="basis-tag">出典：${esc(r.cautions_basis)}</span>`:''}
-    </div>`:''}
   </div>
+  <div class="card">
+    <p class="sec-label">事実との照合</p>
+    <p style="font-size:14px">${esc(r.conclusion||'')}</p>
+    ${isC?`<p class="hint">気持ちの理由は事実と照合できないため、判定はしません。下のデータは参考情報です。</p>`:''}
+  </div>
+  ${facts?`<div class="card">
+    <p class="sec-label">見るべきデータ</p>
+    <ul class="fact-list">${facts}</ul>
+    ${r.facts_basis?`<span class="basis-tag">出典：${esc(r.facts_basis)}</span>`:''}
+  </div>`:''}
+  ${sigs?`<div class="card">
+    <p class="sec-label">この理由が崩れる条件</p>
+    <ul class="caution-list">${sigs}</ul>
+    <p class="hint">次の画面で、見直しの約束として記録できます。</p>
+  </div>`:''}
+  ${watches?`<div class="card">
+    <p class="sec-label">定点観測ポイント</p>
+    ${watches}
+  </div>`:''}
+  ${r.anxiety_answer?`<div class="card">
+    <p class="lbl">あなたの不安「${esc(d.anxiety)}」について</p>
+    <p style="font-size:14px">${esc(r.anxiety_answer)}</p>
+    ${r.anxiety_basis?`<span class="basis-tag">出典：${esc(r.anxiety_basis)}</span>`:''}
+  </div>`:''}
+  ${cautions?`<div class="card">
+    <p class="lbl">購入前に知っておくべきこと</p>
+    <ul class="caution-list">${cautions}</ul>
+    ${r.cautions_basis?`<span class="basis-tag">出典：${esc(r.cautions_basis)}</span>`:''}
+  </div>`:''}
   ${opts.length?`<div class="card">
     <p class="lbl">理由をもう少し具体的にしませんか</p>
     <p style="font-size:13px;color:var(--sub);margin-bottom:10px">いまの理由はやや抽象的なので、次の決算で確かめにくい状態です。近いものをタップすると、上の「あなたの理由」が置き換わります。</p>
@@ -342,6 +404,7 @@ function pResult(){
       ${opts.map(o=>`<button class="chip wide${d.reason===o?' on':''}" data-opt="${esc(o)}">${esc(o)}</button>`).join('')}
     </div></div>`:''}
   <p class="lbl" style="margin:4px 2px 8px">考えは変わりましたか</p>
+  <hr class="action-divider">
   <button class="btn" data-a="proceed">このまま進む</button>
   <button class="btn ghost" data-a="rewrite">購入理由を変えて再検討</button>
   <button class="btn quiet" data-a="miokuri">今回は見送る</button>`;
@@ -398,20 +461,7 @@ function pConfirm(){
     </div>
     <p class="hint">照合した直後なら「生きてる」のままで大丈夫です。記録したあとでも、いつでも変更できます。</p>
   </div>
-  <button class="btn" data-a="final-save">ノートに記録する</button>
-  <div class="card">
-    <p class="lbl">実際に購入する（証券会社のサイトへ）</p>
-    <div class="buy-links">
-      ${BROKERS.map(b=>`<a class="buy-link" href="${b[1]}" target="_blank" rel="noopener">${b[0]}<span>口座をお持ちの方 →</span></a>`).join('')}
-    </div>
-    <div class="notif-box">
-      通知について（準備中）<br>
-      見直しサインに関係する決算・開示が出た際の通知機能を準備しています。開始時のお知らせを希望する方はメールアドレスをどうぞ。
-      ${S.notifSaved?`<p class="ok">登録しました。開始時にお知らせします。</p>`
-        :`<input id="fmail" type="email" placeholder="メールアドレス（任意）">
-      <button class="btn ghost" data-a="notif-save" style="margin-top:8px;padding:9px">通知を希望する</button>`}
-    </div>
-  </div>`;
+  <button class="btn" data-a="final-save">ノートに記録する</button>`;
 }
 function tlHanko(status){
   if(status==='生きてる')return['alive','生'];
@@ -426,6 +476,7 @@ function pDetail(){
   const[c,ch]=hanko(r);
   const isMio=r.decision==='見送り';
   const checks=r.checks||[];
+  const lastCheck=checks.length?checks[checks.length-1]:null;
 
   // Timeline (oldest → newest)
   const histHtml=checks.length?`<div class="card">
@@ -449,26 +500,39 @@ function pDetail(){
   const rr=S.rres;
   const rd=S.recheckData||{name:r.name,reason:r.reason,period:r.period||'',anxiety:r.anxiety||''};
 
+  // latest check match badge for header
+  const latestMatchBadge=(lastCheck&&lastCheck.match_level)?matchBadge(lastCheck.match_level):'';
+
   return `<button class="back" data-a="home">← ノートに戻る</button>
   <div class="card">
-    <div style="display:flex;gap:14px;align-items:center;margin-bottom:12px">
-      <div class="hanko ${c}">${ch}</div>
-      <div><p style="font-weight:500;font-size:16px">${esc(r.name)}</p>
-      <p style="font-size:12px;color:var(--faint)">${esc(r.decision)} ・ ${fmt(r.created_at)}${r.period?' ・ '+r.period:''}</p></div>
+    <div class="detail-header">
+      <div class="detail-hanko ${c}">${ch}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <p style="font-weight:600;font-size:16px">${esc(r.name)}</p>
+          ${latestMatchBadge}
+        </div>
+        <p style="font-size:12px;color:var(--faint);margin-top:2px">${fmt(r.created_at)}${r.period?' ・ '+r.period:''} ・ 照合${checks.length}回</p>
+      </div>
     </div>
-    <p class="lbl">${isMio?'見送りの理由':'あなたの理由'}</p>
     <div class="quote">「${esc(r.reason)}」</div>
-    ${(checks[0]&&checks[0].match_level)?`<p class="lbl" style="margin-top:10px">記録時の照合判定</p>${matchBadge(checks[0].match_level)}`:''}
-    ${r.signal?`<p class="lbl" style="margin-top:10px">見直しサイン</p><p style="font-size:14px">${esc(r.signal)}</p>`:''}
-    ${(checks[0]&&(checks[0].watch_points||[]).length)?`<p class="lbl" style="margin-top:10px">定点観測ポイント（何を・どこで・どうなったら注意）</p>${watchItems(checks[0].watch_points)}`:''}
-    ${r.anxiety?`<p class="lbl" style="margin-top:10px">記録した不安</p><p style="font-size:14px">${esc(r.anxiety)}</p>`:''}
+    ${r.signal?`<p style="font-size:13px;color:var(--sub);margin-top:8px">↩ ${esc(r.signal)}</p>`:''}
+    ${!isMio?`<div class="stamp-pills">
+      ${['生きてる','揺らいでる','崩れた'].map((s,i)=>{
+        const cls=['alive','shaky','broken'][i];
+        return `<button class="stamp-pill ${cls}${lastStatus(r)===s?' sel':''}" data-mst="${s}">${s}</button>`;
+      }).join('')}
+    </div>
+    <p class="hint" style="margin-top:6px">判子を変えると履歴に残ります</p>`:''}
+    ${(checks[0]&&(checks[0].watch_points||[]).length)?`<div style="margin-top:12px"><p class="lbl">定点観測ポイント</p>${watchItems(checks[0].watch_points)}</div>`:''}
+    ${r.anxiety?`<p style="font-size:12px;color:var(--faint);margin-top:10px">記録した不安：${esc(r.anxiety)}</p>`:''}
   </div>
   ${S.err?`<div class="err">${esc(S.err)}</div>`:''}
   ${isMio&&!rr?`<button class="btn" data-a="recheck" ${S.rloading?'disabled':''}>${S.rloading?'<span class="spinner"></span>確認中…':'答え合わせをする'}</button>`:''}
   ${rr?`<div class="card">
     <p class="lbl">${isMio?'答え合わせ ── 見送ったあと、何が起きたか':'最新の照合結果'}</p>
     ${!isMio&&rr.match_level?matchBadge(rr.match_level):''}
-    ${tldrBox(rr.summary)}
+    ${rr.summary?`<p class="summary-text">${esc(rr.summary)}</p>`:''}
     <p style="font-size:14px">${esc(rr.conclusion||'')}</p>
     ${(rr.facts||[]).length?`<ul class="fact-list">${(rr.facts||[]).map(f=>`<li>${esc(f)}</li>`).join('')}</ul>`:''}
     ${rr.basis?`<span class="basis-tag">出典：${esc(rr.basis)}</span>`:''}
@@ -478,16 +542,6 @@ function pDetail(){
       <button class="stamp-btn shaky" data-st="揺らいでる">揺らいでる</button>
       <button class="stamp-btn broken" data-st="崩れた">崩れた</button>
     </div>`:`<button class="btn quiet" data-a="re-close" style="margin-top:8px">記録して閉じる</button>`}
-  </div>`:''}
-  ${!isMio?`<div class="card">
-    <p class="lbl">判子を変更する（いまの理由の状態）</p>
-    <div class="stamp-row">
-      ${['生きてる','揺らいでる','崩れた'].map((s,i)=>{
-        const cls=['alive','shaky','broken'][i];
-        return `<button class="stamp-btn ${cls}${lastStatus(r)===s?' sel':''}" data-mst="${s}">${s}</button>`;
-      }).join('')}
-    </div>
-    <p class="hint">「崩れたな」と感じたら、照合しなくてもここで判子を変えられます。変更は履歴に残ります。</p>
   </div>`:''}
   ${histHtml}
   ${!isMio?`
@@ -581,14 +635,9 @@ async function act(a){
     S.err=null;
     await persist('記録');
   }
-  else if(a==='notif-save'){
-    const f=document.getElementById('fmail');
-    const mail=f?f.value.trim():'';
-    if(mail){
-      await sb.from('notif_list').insert({email:mail});
-      S.notifSaved=true;render();
-    }
-  }
+  else if(a==='filter-all'){S.filter='all';render()}
+  else if(a==='filter-active'){S.filter='active';render()}
+  else if(a==='filter-skip'){S.filter='skip';render()}
   else if(a==='recheck'){await doRecheck()}
   else if(a==='recheck-open'){
     const r=S.recs.find(x=>String(x.id)===String(S.did));
