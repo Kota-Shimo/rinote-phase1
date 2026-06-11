@@ -66,6 +66,16 @@ h2{font-family:var(--serif);font-size:18px;font-weight:600;margin-bottom:14px}
 .caution-list li{font-size:14px;padding:5px 0;display:flex;gap:8px;align-items:baseline}
 .caution-list li::before{content:"！";color:var(--shaky);flex:none;font-size:12px;font-weight:600}
 .sec{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.type-badge{display:inline-block;font-size:11px;border-radius:6px;padding:2px 10px;margin-left:8px;background:var(--indigo-bg);color:var(--indigo);vertical-align:2px}
+.match-badge{display:inline-block;font-size:14px;font-weight:600;border-radius:8px;padding:6px 14px;margin:4px 0 8px;border:1.5px solid}
+.match-badge.ok{color:var(--alive);border-color:var(--alive);background:var(--alive-bg)}
+.match-badge.part{color:var(--shaky);border-color:var(--shaky);background:var(--shaky-bg)}
+.match-badge.ng{color:var(--broken);border-color:var(--broken);background:var(--broken-bg)}
+.match-badge.na{color:var(--sub);border-color:var(--line);background:var(--paper)}
+.flow-step{font-size:11px;color:var(--faint);letter-spacing:.08em;margin:2px 0 4px}
+.watch-list{list-style:none;margin:6px 0 0}
+.watch-list li{font-size:14px;padding:5px 0;display:flex;gap:8px;align-items:baseline}
+.watch-list li::before{content:"◎";color:var(--indigo);flex:none;font-size:12px}
 .spinner{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--indigo);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:8px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .wait{text-align:center;padding:48px 16px}
@@ -217,21 +227,54 @@ function pWait(){
     <p>「${esc(S.d.reason)}」と照らし合わせます</p>
   </div>`;
 }
+function typeLabel(t){
+  if(t==='A')return'抽象的な理由';
+  if(t==='B')return'具体的な理由';
+  if(t==='C')return'気持ちの理由';
+  return'';
+}
+function matchBadge(level){
+  if(!level)return'';
+  let cls='na';
+  if(level==='一致')cls='ok';
+  else if(level==='一部一致')cls='part';
+  else if(level==='現時点の開示とは一致しない')cls='ng';
+  return `<span class="match-badge ${cls}">${esc(level)}</span>`;
+}
 function pResult(){
   const d=S.d,r=S.res||{};
   const facts=(r.facts||[]).filter(Boolean).map(f=>`<li>${esc(f)}</li>`).join('');
   const cautions=(r.cautions||[]).filter(Boolean).map(c=>`<li>${esc(c)}</li>`).join('');
+  const sigs=(r.signal_suggestions||[]).filter(Boolean).map(s=>`<li>${esc(s)}</li>`).join('');
+  const watches=(r.watch_points||[]).filter(Boolean).map(w=>`<li>${esc(w)}</li>`).join('');
   const opts=(r.options||[]).filter(Boolean);
+  const isC=r.reason_type==='C';
   return `<p class="kicker">2 / 3 ── 照合</p>
   <h2>${esc(d.name)}</h2>
   ${S.err?`<div class="err">${esc(S.err)}</div>`:''}
   <div class="card">
-    <p class="lbl">あなたの理由</p>
-    <div class="quote">「${esc(d.reason)}」</div>
-    <p class="lbl" style="margin-top:12px">決算に照らした結論</p>
-    <p style="font-size:14px">${esc(r.conclusion||'')}</p>
-    ${facts?`<ul class="fact-list">${facts}</ul>`:''}
-    ${r.facts_basis?`<span class="basis-tag">出典：${esc(r.facts_basis)}</span>`:''}
+    <p class="flow-step">STEP 1 ── あなたの理由</p>
+    <div class="quote">「${esc(d.reason)}」${r.reason_type?`<span class="type-badge">${typeLabel(r.reason_type)}</span>`:''}</div>
+    <div class="sec">
+      <p class="flow-step">STEP 2 ── 事実との照合</p>
+      ${matchBadge(r.match_level)}
+      <p style="font-size:14px">${esc(r.conclusion||'')}</p>
+      ${isC?`<p class="hint">気持ちの理由は事実と照合できないため、判定はしません。下のデータは参考情報です。</p>`:''}
+    </div>
+    ${facts?`<div class="sec">
+      <p class="flow-step">STEP 3 ── 見るべきもの</p>
+      <ul class="fact-list">${facts}</ul>
+      ${r.facts_basis?`<span class="basis-tag">出典：${esc(r.facts_basis)}</span>`:''}
+    </div>`:''}
+    ${sigs?`<div class="sec">
+      <p class="flow-step">STEP 4 ── この理由が崩れる条件</p>
+      <ul class="caution-list">${sigs}</ul>
+      <p class="hint">次の画面で、見直しの約束として記録できます。</p>
+    </div>`:''}
+    ${watches?`<div class="sec">
+      <p class="flow-step">STEP 5 ── 定点観測ポイント（決算以外も）</p>
+      <ul class="watch-list">${watches}</ul>
+    </div>`:''}
     ${r.anxiety_answer?`<div class="sec">
       <p class="lbl">あなたの不安「${esc(d.anxiety)}」について</p>
       <p style="font-size:14px">${esc(r.anxiety_answer)}</p>
@@ -328,6 +371,7 @@ function pDetail(){
   const isMio=r.decision==='見送り';
   const hist=(r.checks||[]).slice().reverse().map(ck=>`<div class="hist-item">
     <div class="hist-top"><strong>${esc(ck.status||'記録のみ')}</strong><span style="color:var(--faint)">${fmt(ck.ts)}</span></div>
+    ${ck.match_level?matchBadge(ck.match_level):''}
     <p>${esc(ck.conclusion||'')}</p>
     ${(ck.facts||[]).length?`<ul class="fact-list">${ck.facts.map(f=>`<li>${esc(f)}</li>`).join('')}</ul>`:''}
     ${ck.basis?`<span class="basis-tag">出典：${esc(ck.basis)}</span>`:''}
@@ -342,12 +386,15 @@ function pDetail(){
     </div>
     <p class="lbl">${isMio?'見送りの理由':'あなたの理由'}</p>
     <div class="quote">「${esc(r.reason)}」</div>
+    ${(r.checks&&r.checks[0]&&r.checks[0].match_level)?`<p class="lbl" style="margin-top:10px">記録時の照合判定</p>${matchBadge(r.checks[0].match_level)}`:''}
     ${r.signal?`<p class="lbl" style="margin-top:10px">見直しサイン</p><p style="font-size:14px">${esc(r.signal)}</p>`:''}
+    ${(r.checks&&r.checks[0]&&(r.checks[0].watch_points||[]).length)?`<p class="lbl" style="margin-top:10px">定点観測ポイント</p><ul class="watch-list">${r.checks[0].watch_points.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''}
     ${r.anxiety?`<p class="lbl" style="margin-top:10px">記録した不安</p><p style="font-size:14px">${esc(r.anxiety)}</p>`:''}
   </div>
   ${S.err?`<div class="err">${esc(S.err)}</div>`:''}
   ${rr?`<div class="card">
     <p class="lbl">${isMio?'答え合わせ ── 見送ったあと、何が起きたか':'最新の照合結果'}</p>
+    ${!isMio&&rr.match_level?matchBadge(rr.match_level):''}
     <p style="font-size:14px">${esc(rr.conclusion||'')}</p>
     ${(rr.facts||[]).length?`<ul class="fact-list">${(rr.facts||[]).map(f=>`<li>${esc(f)}</li>`).join('')}</ul>`:''}
     ${rr.basis?`<span class="basis-tag">出典：${esc(rr.basis)}</span>`:''}
@@ -464,7 +511,8 @@ async function persist(decision,mioWhy){
     reason:decision==='見送り'?mioWhy:d.reason,
     decision,period:d.period||'',anxiety:d.anxiety||'',signal:d.signal||'',
     checks:[{ts:Date.now(),status:decision==='見送り'?'見送り':(d.stamp||'生きてる'),
-      conclusion:r.conclusion||'',facts:r.facts||[],basis:r.facts_basis||''}]
+      conclusion:r.conclusion||'',facts:r.facts||[],basis:r.facts_basis||'',
+      match_level:r.match_level||'',watch_points:r.watch_points||[]}]
   });
   if(error){S.err='保存に失敗しました。通信環境を確認して、もう一度お試しください。';render();return;}
   await loadRecs();
@@ -477,7 +525,8 @@ async function pushCheck(st){
   const rec=S.recs.find(x=>String(x.id)===String(S.did));
   if(!rec||!S.rres)return false;
   const checks=(rec.checks||[]).concat([{ts:Date.now(),status:st,
-    conclusion:S.rres.conclusion||'',facts:S.rres.facts||[],basis:S.rres.basis||''}]);
+    conclusion:S.rres.conclusion||'',facts:S.rres.facts||[],basis:S.rres.basis||'',
+    match_level:S.rres.match_level||''}]);
   const {error}=await sb.from('records').update({checks}).eq('id',rec.id);
   if(error){S.err='判定の保存に失敗しました。再試行してください。';return false;}
   await loadRecs();
