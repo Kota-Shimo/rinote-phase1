@@ -133,7 +133,7 @@ const BROKERS=[
   ['楽天証券','https://www.rakuten-sec.co.jp/'],
   ['マネックス証券','https://www.monex.co.jp/']
 ];
-let S={session:null,recs:[],view:'list',d:null,res:null,err:null,info:null,did:null,rres:null,rloading:false,notifSaved:false,loginMsg:null,remaining:null,loginStep:'email',loginEmail:'',recheckOpen:false,recheckData:null};
+let S={session:null,recs:[],view:'list',d:null,res:null,err:null,info:null,did:null,rres:null,rloading:false,notifSaved:false,loginMsg:null,remaining:null,loginStep:'email',loginEmail:'',loginTab:'login',recheckOpen:false,recheckData:null};
 
 function fmt(ts){const d=new Date(ts);return d.getFullYear()+'.'+(d.getMonth()+1)+'.'+d.getDate()}
 function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -190,15 +190,22 @@ function pLogin(){
       <p class="foot">本アプリは投資助言ではありません。売買の推奨・株価予測は行いません。</p>
     </div>`;
   }
+  const tab=S.loginTab||'login';
   return `<div class="login-wrap">
     <p class="login-logo">投資理由ノート</p>
     <p class="login-sub">理由を記録し、事実と照らすノート</p>
     ${S.loginMsg?`<div class="info">${esc(S.loginMsg)}</div>`:''}
     ${S.err?`<div class="err">${esc(S.err)}</div>`:''}
     <div class="card">
+      <div style="display:flex;gap:0;margin-bottom:16px;border:1px solid var(--line);border-radius:10px;overflow:hidden">
+        <button data-a="tab-login" style="flex:1;border:none;padding:10px;font-size:14px;font-family:var(--sans);cursor:pointer;${tab==='login'?'background:var(--indigo);color:#fff;font-weight:500':'background:var(--card);color:var(--sub)'}">ログイン</button>
+        <button data-a="tab-signup" style="flex:1;border:none;padding:10px;font-size:14px;font-family:var(--sans);cursor:pointer;${tab==='signup'?'background:var(--indigo);color:#fff;font-weight:500':'background:var(--card);color:var(--sub)'}">新規登録</button>
+      </div>
       <div class="field"><p class="lbl">メールアドレス</p><input id="lemail" type="email" placeholder="you@example.com" value="${esc(S.loginEmail)}"></div>
-      <button class="btn" data-a="send-otp">ログインコードを送る</button>
-      <p class="hint">パスワード不要。届いたメールの6桁コードを入力するとログインできます。一度ログインすると次回は不要です。</p>
+      <button class="btn" data-a="send-otp">${tab==='signup'?'登録コードを送る':'ログインコードを送る'}</button>
+      <p class="hint">${tab==='signup'
+        ?'パスワード不要。届いたメールの6桁コードを入力すると登録が完了します。'
+        :'登録済みのメールアドレスに6桁のコードを送ります。一度ログインすると次回からは不要です。'}</p>
     </div>
     <p class="foot">本アプリは投資助言ではありません。売買の推奨・株価予測は行いません。</p>
   </div>`;
@@ -502,13 +509,21 @@ function gConfirm(){
   if(fs)S.d.customSignal=fs.value.trim();
 }
 async function act(a){
-  if(a==='send-otp'){
+  if(a==='tab-login'){S.loginTab='login';S.err=null;S.loginMsg=null;render()}
+  else if(a==='tab-signup'){S.loginTab='signup';S.err=null;S.loginMsg=null;render()}
+  else if(a==='send-otp'){
     const f=document.getElementById('lemail');
     const email=f?f.value.trim():'';
     if(!email){S.err='メールアドレスを入力してください。';render();return}
     S.err=null;
-    const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:true}});
-    if(error){S.err='送信に失敗しました。アドレスを確認してください。';render();return;}
+    const isSignup=(S.loginTab||'login')==='signup';
+    const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:isSignup}});
+    if(error){
+      S.err=(!isSignup&&/not allowed|signups|not found/i.test(error.message||''))
+        ?'このメールアドレスは未登録です。「新規登録」タブからご登録ください。'
+        :'送信に失敗しました。アドレスを確認してください。';
+      render();return;
+    }
     S.loginEmail=email;S.loginStep='otp';
     S.loginMsg='6桁のコードを送りました。メールを確認してください。';
     render();
