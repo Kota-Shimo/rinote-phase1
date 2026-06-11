@@ -73,6 +73,13 @@ h2{font-family:var(--serif);font-size:18px;font-weight:600;margin-bottom:14px}
 .match-badge.ng{color:var(--broken);border-color:var(--broken);background:var(--broken-bg)}
 .match-badge.na{color:var(--sub);border-color:var(--line);background:var(--paper)}
 .flow-step{font-size:11px;color:var(--faint);letter-spacing:.08em;margin:2px 0 4px}
+.tldr{background:var(--indigo-bg);border-left:4px solid var(--indigo);border-radius:0 12px 12px 0;padding:14px 16px;margin-bottom:12px}
+.tldr-label{font-size:11px;color:var(--indigo);letter-spacing:.08em;font-weight:600;margin-bottom:4px}
+.tldr p{font-size:15px;line-height:1.8;color:var(--ink)}
+.wp-item{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:8px;background:var(--card)}
+.wp-what{font-weight:500;font-size:14px}
+.wp-where{font-size:12px;color:var(--sub);margin-top:2px}
+.wp-alert{font-size:12px;color:var(--shaky);margin-top:4px;font-weight:500}
 .watch-list{list-style:none;margin:6px 0 0}
 .watch-list li{font-size:14px;padding:5px 0;display:flex;gap:8px;align-items:baseline}
 .watch-list li::before{content:"◎";color:var(--indigo);flex:none;font-size:12px}
@@ -271,23 +278,35 @@ function matchBadge(level){
   else if(level==='現時点の開示とは一致しない')cls='ng';
   return `<span class="match-badge ${cls}">${esc(level)}</span>`;
 }
+function tldrBox(summary){
+  if(!summary)return'';
+  return `<div class="tldr"><p class="tldr-label">つまり、どういうこと？</p><p>${esc(summary)}</p></div>`;
+}
+function watchItems(list){
+  return (list||[]).filter(Boolean).map(w=>{
+    const p=String(w).split('｜');
+    if(p.length>=3)return `<div class="wp-item"><p class="wp-what">◎ ${esc(p[0].trim())}</p><p class="wp-where">${esc(p[1].trim())}</p><p class="wp-alert">⚠ ${esc(p[2].trim())}</p></div>`;
+    return `<div class="wp-item"><p class="wp-what">◎ ${esc(w)}</p></div>`;
+  }).join('');
+}
 function pResult(){
   const d=S.d,r=S.res||{};
   const facts=(r.facts||[]).filter(Boolean).map(f=>`<li>${esc(f)}</li>`).join('');
   const cautions=(r.cautions||[]).filter(Boolean).map(c=>`<li>${esc(c)}</li>`).join('');
   const sigs=(r.signal_suggestions||[]).filter(Boolean).map(s=>`<li>${esc(s)}</li>`).join('');
-  const watches=(r.watch_points||[]).filter(Boolean).map(w=>`<li>${esc(w)}</li>`).join('');
+  const watches=watchItems(r.watch_points);
   const opts=(r.options||[]).filter(Boolean);
   const isC=r.reason_type==='C';
   return `<p class="kicker">2 / 3 ── 照合</p>
   <h2>${esc(d.name)}</h2>
   ${S.err?`<div class="err">${esc(S.err)}</div>`:''}
+  ${matchBadge(r.match_level)}
+  ${tldrBox(r.summary)}
   <div class="card">
     <p class="flow-step">STEP 1 ── あなたの理由</p>
     <div class="quote">「${esc(d.reason)}」${r.reason_type?`<span class="type-badge">${typeLabel(r.reason_type)}</span>`:''}</div>
     <div class="sec">
-      <p class="flow-step">STEP 2 ── 事実との照合</p>
-      ${matchBadge(r.match_level)}
+      <p class="flow-step">STEP 2 ── 事実との照合（くわしく）</p>
       <p style="font-size:14px">${esc(r.conclusion||'')}</p>
       ${isC?`<p class="hint">気持ちの理由は事実と照合できないため、判定はしません。下のデータは参考情報です。</p>`:''}
     </div>
@@ -302,8 +321,8 @@ function pResult(){
       <p class="hint">次の画面で、見直しの約束として記録できます。</p>
     </div>`:''}
     ${watches?`<div class="sec">
-      <p class="flow-step">STEP 5 ── 定点観測ポイント（決算以外も）</p>
-      <ul class="watch-list">${watches}</ul>
+      <p class="flow-step">STEP 5 ── 定点観測ポイント（何を・どこで・どうなったら注意）</p>
+      ${watches}
     </div>`:''}
     ${r.anxiety_answer?`<div class="sec">
       <p class="lbl">あなたの不安「${esc(d.anxiety)}」について</p>
@@ -418,7 +437,8 @@ function pDetail(){
         <div class="tl-body">
           <div class="tl-head"><span style="font-size:12px;color:var(--sub);font-weight:500">${i===0?'記録時':'照合 #'+i}</span><span style="font-size:11px;color:var(--faint)">${fmt(ck.ts)}</span></div>
           ${ck.match_level?matchBadge(ck.match_level):''}
-          ${ck.conclusion?`<p style="font-size:13px;margin-top:2px;line-height:1.6">${esc(ck.conclusion)}</p>`:''}
+          ${ck.summary?`<p style="font-size:13px;margin-top:2px;line-height:1.6;font-weight:500">${esc(ck.summary)}</p>`:''}
+          ${ck.conclusion?`<p style="font-size:13px;margin-top:2px;line-height:1.6;color:var(--sub)">${esc(ck.conclusion)}</p>`:''}
           ${(ck.facts||[]).length?`<ul class="fact-list" style="font-size:12px">${ck.facts.map(f=>`<li>${esc(f)}</li>`).join('')}</ul>`:''}
           ${ck.basis?`<span class="basis-tag" style="margin-top:4px">${esc(ck.basis)}</span>`:''}
         </div>
@@ -440,7 +460,7 @@ function pDetail(){
     <div class="quote">「${esc(r.reason)}」</div>
     ${(checks[0]&&checks[0].match_level)?`<p class="lbl" style="margin-top:10px">記録時の照合判定</p>${matchBadge(checks[0].match_level)}`:''}
     ${r.signal?`<p class="lbl" style="margin-top:10px">見直しサイン</p><p style="font-size:14px">${esc(r.signal)}</p>`:''}
-    ${(checks[0]&&(checks[0].watch_points||[]).length)?`<p class="lbl" style="margin-top:10px">定点観測ポイント</p><ul class="watch-list">${checks[0].watch_points.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''}
+    ${(checks[0]&&(checks[0].watch_points||[]).length)?`<p class="lbl" style="margin-top:10px">定点観測ポイント（何を・どこで・どうなったら注意）</p>${watchItems(checks[0].watch_points)}`:''}
     ${r.anxiety?`<p class="lbl" style="margin-top:10px">記録した不安</p><p style="font-size:14px">${esc(r.anxiety)}</p>`:''}
   </div>
   ${S.err?`<div class="err">${esc(S.err)}</div>`:''}
@@ -448,6 +468,7 @@ function pDetail(){
   ${rr?`<div class="card">
     <p class="lbl">${isMio?'答え合わせ ── 見送ったあと、何が起きたか':'最新の照合結果'}</p>
     ${!isMio&&rr.match_level?matchBadge(rr.match_level):''}
+    ${tldrBox(rr.summary)}
     <p style="font-size:14px">${esc(rr.conclusion||'')}</p>
     ${(rr.facts||[]).length?`<ul class="fact-list">${(rr.facts||[]).map(f=>`<li>${esc(f)}</li>`).join('')}</ul>`:''}
     ${rr.basis?`<span class="basis-tag">出典：${esc(rr.basis)}</span>`:''}
@@ -613,7 +634,7 @@ async function persist(decision,mioWhy){
     decision,period:d.period||'',anxiety:d.anxiety||'',signal:d.signal||'',
     checks:[{ts:Date.now(),status:decision==='見送り'?'見送り':(d.stamp||'生きてる'),
       conclusion:r.conclusion||'',facts:r.facts||[],basis:r.facts_basis||'',
-      match_level:r.match_level||'',watch_points:r.watch_points||[]}]
+      match_level:r.match_level||'',watch_points:r.watch_points||[],summary:r.summary||''}]
   });
   if(error){S.err='保存に失敗しました。通信環境を確認して、もう一度お試しください。';render();return;}
   await loadRecs();
@@ -627,7 +648,7 @@ async function pushCheck(st){
   if(!rec||!S.rres)return false;
   const checks=(rec.checks||[]).concat([{ts:Date.now(),status:st,
     conclusion:S.rres.conclusion||'',facts:S.rres.facts||[],basis:S.rres.basis||'',
-    match_level:S.rres.match_level||''}]);
+    match_level:S.rres.match_level||'',summary:S.rres.summary||''}]);
   const {error}=await sb.from('records').update({checks}).eq('id',rec.id);
   if(error){S.err='判定の保存に失敗しました。再試行してください。';return false;}
   await loadRecs();
