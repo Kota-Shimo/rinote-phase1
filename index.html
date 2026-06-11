@@ -166,7 +166,7 @@ const BROKERS=[
   ['楽天証券','https://www.rakuten-sec.co.jp/'],
   ['マネックス証券','https://www.monex.co.jp/']
 ];
-let S={session:null,recs:[],view:'list',d:null,res:null,err:null,info:null,did:null,rres:null,rloading:false,notifSaved:false,loginMsg:null,remaining:null,loginStep:'email',loginEmail:'',loginTab:'login',recheckOpen:false,recheckData:null,filter:'all',histOpen:false,holdEdit:false,tab:'note'};
+let S={session:null,recs:[],view:'list',d:null,res:null,err:null,info:null,did:null,rres:null,rloading:false,notifSaved:false,loginMsg:null,remaining:null,loginStep:'email',loginEmail:'',loginTab:'login',guest:localStorage.getItem('rinote_guest')==='1',recheckOpen:false,recheckData:null,filter:'all',histOpen:false,holdEdit:false,tab:'note'};
 
 function fmt(ts){const d=new Date(ts);return d.getFullYear()+'.'+(d.getMonth()+1)+'.'+d.getDate()}
 function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -179,12 +179,27 @@ function hanko(r){
   if(s==='崩れた')return['broken','崩'];
   return['none','未\n判定'];
 }
+const GUEST_KEY='rinote_recs';
+function guestRecs(){try{return JSON.parse(localStorage.getItem(GUEST_KEY)||'[]')}catch(_){return[]}}
+function guestSave(recs){localStorage.setItem(GUEST_KEY,JSON.stringify(recs))}
+async function dbUpdate(id,fields){
+  if(S.guest){
+    const recs=guestRecs();
+    const rec=recs.find(x=>String(x.id)===String(id));
+    if(rec)Object.assign(rec,fields);
+    guestSave(recs);
+    return null;
+  }
+  const {error}=await sb.from('records').update(fields).eq('id',id);
+  return error;
+}
 async function loadRecs(){
+  if(S.guest){S.recs=guestRecs();return}
   const {data,error}=await sb.from('records').select('*').order('created_at',{ascending:true});
   if(!error)S.recs=data||[];
 }
 async function api(kind,data){
-  const token=S.session.access_token;
+  const token=S.guest?'guest':S.session.access_token;
   const res=await fetch('/api/check',{
     method:'POST',
     headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
@@ -195,7 +210,7 @@ async function api(kind,data){
   if(typeof out.remaining==='number')S.remaining=out.remaining;
   return out.result;
 }
-function render(){document.getElementById('app').innerHTML=S.session?`<div class="wrap">${page()}</div>`:pLogin();bind()}
+function render(){document.getElementById('app').innerHTML=(S.session||S.guest)?`<div class="wrap">${page()}</div>`:pLogin();bind()}
 function page(){
   const v=S.view;
   if(v==='form')return pForm();
@@ -240,6 +255,8 @@ function pLogin(){
         ?'パスワード不要。届いたメールの6桁コードを入力すると登録が完了します。'
         :'登録済みのメールアドレスに6桁のコードを送ります。一度ログインすると次回からは不要です。'}</p>
     </div>
+    <button class="btn ghost" data-a="guest">ログインせずに試す</button>
+    <p class="hint" style="text-align:center">お試しモードの記録はこのブラウザだけに保存されます。</p>
     <p class="foot">本アプリは投資助言ではありません。売買の推奨・株価予測は行いません。</p>
   </div>`;
 }
@@ -382,7 +399,7 @@ function pList(){
     ${S.recs.length?`<p class="hint" style="text-align:center">判子の意味 ── 生：理由が生きてる ・ 揺：揺らいでる ・ 崩：崩れた ・ 見送：見送り</p>`:''}`;
   }
 
-  return `<header><h1>投資理由ノート</h1><div class="hr"><span>RINOTE</span><button data-a="logout">ログアウト</button></div></header>
+  return `<header><h1>投資理由ノート</h1><div class="hr"><span>${S.guest?'お試しモード':'RINOTE'}</span><button data-a="logout">${S.guest?'終了する':'ログアウト'}</button></div></header>
   ${S.info?`<div class="info">${esc(S.info)}</div>`:''}
   ${tabsHtml}
   ${mainHtml}
@@ -760,7 +777,11 @@ async function act(a){
   else if(a==='back-email'){
     S.loginStep='email';S.loginMsg=null;S.err=null;render();
   }
-  else if(a==='logout'){await sb.auth.signOut();S.session=null;S.recs=[];render()}
+  else if(a==='guest'){S.guest=true;localStorage.setItem('rinote_guest','1');S.err=null;await loadRecs();render()}
+  else if(a==='logout'){
+    if(S.guest){S.guest=false;localStorage.removeItem('rinote_guest');S.recs=[];S.view='list';render();return}
+    await sb.auth.signOut();S.session=null;S.recs=[];render();
+  }
   else if(a==='new'){S.d={name:'',reason:'',period:'',anxiety:'',signal:'',customSignal:'',stamp:'生きてる',finalThought:'',customThought:'',qty:null,avgPrice:null};S.res=null;S.err=null;S.info=null;S.notifSaved=false;S.view='form';render()}
   else if(a==='home'){S.view='list';S.err=null;render()}
   else if(a==='back-result'){S.view='result';render()}
@@ -790,7 +811,7 @@ async function act(a){
     const fq=document.getElementById('hqty'),fp=document.getElementById('hprice');
     const qty=(fq&&fq.value!=='')?parseFloat(fq.value):null;
     const avg=(fp&&fp.value!=='')?parseFloat(fp.value):null;
-    const {error}=await sb.from('records').update({qty,avg_price:avg}).eq('id',S.did);
+    const error=await dbUpdate(S.did,{qty,avg_price:avg});
     if(error&&/column|schema/i.test(error.message||'')){
       S.err='保有情報の保存にはデータベースの更新（qty・avg_price列の追加）が必要です。';render();return;
     }
@@ -812,7 +833,8 @@ async function act(a){
   else if(a==='re-close'){await pushCheck('答え合わせ');S.rres=null;render()}
   else if(a==='del'){
     if(!confirm('この記録を削除します。照合の履歴も消えますが、よろしいですか？'))return;
-    await sb.from('records').delete().eq('id',S.did);
+    if(S.guest){guestSave(guestRecs().filter(x=>String(x.id)!==String(S.did)))}
+    else{await sb.from('records').delete().eq('id',S.did)}
     await loadRecs();S.view='list';render();
   }
 }
@@ -848,11 +870,18 @@ async function persist(decision,mioWhy){
       conclusion:r.conclusion||'',facts:r.facts||[],basis:r.facts_basis||'',
       match_level:r.match_level||'',watch_points:r.watch_points||[],summary:r.summary||''}]
   };
-  let {error}=await sb.from('records').insert({...base,final_thought:d.finalThought||'',qty:d.qty||null,avg_price:d.avgPrice||null});
-  if(error&&/column|schema/i.test(error.message||'')){
-    ({error}=await sb.from('records').insert(base));
+  if(S.guest){
+    const recs=guestRecs();
+    recs.push({...base,id:Date.now(),created_at:new Date().toISOString(),
+      final_thought:d.finalThought||'',qty:d.qty||null,avg_price:d.avgPrice||null});
+    guestSave(recs);
+  }else{
+    let {error}=await sb.from('records').insert({...base,final_thought:d.finalThought||'',qty:d.qty||null,avg_price:d.avgPrice||null});
+    if(error&&/column|schema/i.test(error.message||'')){
+      ({error}=await sb.from('records').insert(base));
+    }
+    if(error){S.err='保存に失敗しました。通信環境を確認して、もう一度お試しください。';render();return;}
   }
-  if(error){S.err='保存に失敗しました。通信環境を確認して、もう一度お試しください。';render();return;}
   await loadRecs();
   S.info=decision==='見送り'
     ?`「${d.name}」を見送りとして記録しました。あとで「答え合わせ」ができます。`
@@ -865,7 +894,7 @@ async function pushCheck(st){
   const checks=(rec.checks||[]).concat([{ts:Date.now(),status:st,
     conclusion:S.rres.conclusion||'',facts:S.rres.facts||[],basis:S.rres.basis||'',
     match_level:S.rres.match_level||'',summary:S.rres.summary||''}]);
-  const {error}=await sb.from('records').update({checks}).eq('id',rec.id);
+  const error=await dbUpdate(rec.id,{checks});
   if(error){S.err='判定の保存に失敗しました。再試行してください。';return false;}
   await loadRecs();
   return true;
@@ -881,7 +910,7 @@ async function manualStamp(st){
   if(lastStatus(rec)===st)return;
   const checks=(rec.checks||[]).concat([{ts:Date.now(),status:st,
     conclusion:'自分で判子を変更しました',facts:[],basis:''}]);
-  const {error}=await sb.from('records').update({checks}).eq('id',rec.id);
+  const error=await dbUpdate(rec.id,{checks});
   if(error){S.err='判子の変更に失敗しました。再試行してください。';render();return;}
   S.err=null;
   await loadRecs();
@@ -896,7 +925,7 @@ async function manualStamp(st){
     if(session){await loadRecs()}
     render();
   });
-  if(S.session)await loadRecs();
+  if(S.session||S.guest)await loadRecs();
   render();
 })();
 </script>

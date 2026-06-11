@@ -136,7 +136,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: "POSTのみ受け付けます" });
   }
 
-  const user = await getUser(req);
+  // お試しモード: トークン "guest" は固定IDで受け付ける（全ゲスト共有の回数制限がかかる）
+  const rawToken = (req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+  let user;
+  if (rawToken === "guest") {
+    user = { id: "00000000-0000-0000-0000-000000000000" };
+  } else {
+    user = await getUser(req);
+  }
   if (!user || !user.id) {
     return res.status(401).json({ error: "ログインが必要です" });
   }
