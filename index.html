@@ -99,9 +99,17 @@ h2{font-family:var(--serif);font-size:18px;font-weight:600;margin-bottom:14px}
 .stamp-btn.sel.alive{background:var(--alive-bg)}
 .stamp-btn.sel.shaky{background:var(--shaky-bg)}
 .stamp-btn.sel.broken{background:var(--broken-bg)}
-.hist-item{padding:11px 0;border-bottom:1px solid var(--line);font-size:13px}
-.hist-item:last-child{border:none}
-.hist-top{display:flex;justify-content:space-between;margin-bottom:4px}
+.tl-item{display:flex;gap:12px;padding:10px 0}
+.tl-left{display:flex;flex-direction:column;align-items:center;width:32px;flex-shrink:0}
+.tl-hanko{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-size:13px;font-weight:600;border:2px solid;flex-shrink:0}
+.tl-hanko.alive{color:var(--alive);border-color:var(--alive);background:var(--alive-bg)}
+.tl-hanko.shaky{color:var(--shaky);border-color:var(--shaky);background:var(--shaky-bg)}
+.tl-hanko.broken{color:var(--broken);border-color:var(--broken);background:var(--broken-bg)}
+.tl-hanko.none{color:var(--faint);border-color:var(--line);background:var(--paper);font-size:9px;font-family:var(--sans);text-align:center;line-height:1.2}
+.tl-hanko.skip{color:var(--sub);border-color:var(--sub);background:var(--paper);font-size:11px}
+.tl-line{flex:1;width:2px;background:var(--line);margin:4px 0;min-height:8px}
+.tl-body{flex:1;min-width:0;padding-bottom:6px}
+.tl-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px}
 .foot{font-size:11px;color:var(--faint);text-align:center;padding:20px 12px 0;line-height:1.9}
 .hint{font-size:11px;color:var(--faint);margin-top:6px;line-height:1.6}
 .login-wrap{max-width:380px;margin:10vh auto 0;padding:0 16px}
@@ -125,7 +133,7 @@ const BROKERS=[
   ['楽天証券','https://www.rakuten-sec.co.jp/'],
   ['マネックス証券','https://www.monex.co.jp/']
 ];
-let S={session:null,recs:[],view:'list',d:null,res:null,err:null,info:null,did:null,rres:null,rloading:false,notifSaved:false,loginMsg:null,remaining:null};
+let S={session:null,recs:[],view:'list',d:null,res:null,err:null,info:null,did:null,rres:null,rloading:false,notifSaved:false,loginMsg:null,remaining:null,loginStep:'email',loginEmail:'',recheckOpen:false,recheckData:null};
 
 function fmt(ts){const d=new Date(ts);return d.getFullYear()+'.'+(d.getMonth()+1)+'.'+d.getDate()}
 function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -167,15 +175,30 @@ function page(){
   return pList();
 }
 function pLogin(){
+  if(S.loginStep==='otp'){
+    return `<div class="login-wrap">
+      <p class="login-logo">投資理由ノート</p>
+      <p class="login-sub">理由を記録し、事実と照らすノート</p>
+      ${S.loginMsg?`<div class="info">${esc(S.loginMsg)}</div>`:''}
+      ${S.err?`<div class="err">${esc(S.err)}</div>`:''}
+      <div class="card">
+        <p class="lbl" style="margin-bottom:10px"><b>${esc(S.loginEmail)}</b> に6桁のコードを送りました</p>
+        <div class="field"><input id="lotp" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000" autocomplete="one-time-code" style="font-size:26px;letter-spacing:.3em;text-align:center;padding:14px 12px"></div>
+        <button class="btn" data-a="verify-otp">ログインする</button>
+        <button class="btn quiet" data-a="back-email">← メールアドレスを変える</button>
+      </div>
+      <p class="foot">本アプリは投資助言ではありません。売買の推奨・株価予測は行いません。</p>
+    </div>`;
+  }
   return `<div class="login-wrap">
     <p class="login-logo">投資理由ノート</p>
     <p class="login-sub">理由を記録し、事実と照らすノート</p>
     ${S.loginMsg?`<div class="info">${esc(S.loginMsg)}</div>`:''}
     ${S.err?`<div class="err">${esc(S.err)}</div>`:''}
     <div class="card">
-      <div class="field"><p class="lbl">メールアドレス</p><input id="lemail" type="email" placeholder="you@example.com"></div>
-      <button class="btn" data-a="login">ログインリンクを送る</button>
-      <p class="hint">パスワードは不要です。届いたメールのリンクを開くとログインできます。</p>
+      <div class="field"><p class="lbl">メールアドレス</p><input id="lemail" type="email" placeholder="you@example.com" value="${esc(S.loginEmail)}"></div>
+      <button class="btn" data-a="send-otp">ログインコードを送る</button>
+      <p class="hint">パスワード不要。届いたメールの6桁コードを入力するとログインできます。一度ログインすると次回は不要です。</p>
     </div>
     <p class="foot">本アプリは投資助言ではありません。売買の推奨・株価予測は行いません。</p>
   </div>`;
@@ -364,19 +387,41 @@ function pConfirm(){
     </div>
   </div>`;
 }
+function tlHanko(status){
+  if(status==='生きてる')return['alive','生'];
+  if(status==='揺らいでる')return['shaky','揺'];
+  if(status==='崩れた')return['broken','崩'];
+  if(status==='見送り')return['skip','見'];
+  return['none','未'];
+}
 function pDetail(){
   const r=S.recs.find(x=>String(x.id)===String(S.did));
   if(!r){S.view='list';setTimeout(render,0);return''}
   const[c,ch]=hanko(r);
   const isMio=r.decision==='見送り';
-  const hist=(r.checks||[]).slice().reverse().map(ck=>`<div class="hist-item">
-    <div class="hist-top"><strong>${esc(ck.status||'記録のみ')}</strong><span style="color:var(--faint)">${fmt(ck.ts)}</span></div>
-    ${ck.match_level?matchBadge(ck.match_level):''}
-    <p>${esc(ck.conclusion||'')}</p>
-    ${(ck.facts||[]).length?`<ul class="fact-list">${ck.facts.map(f=>`<li>${esc(f)}</li>`).join('')}</ul>`:''}
-    ${ck.basis?`<span class="basis-tag">出典：${esc(ck.basis)}</span>`:''}
-  </div>`).join('');
+  const checks=r.checks||[];
+
+  // Timeline (oldest → newest)
+  const histHtml=checks.length?`<div class="card">
+    <p class="lbl">照合の記録（${checks.length}回）</p>
+    ${checks.map((ck,i)=>{
+      const[hc,hch]=tlHanko(ck.status);
+      return `<div class="tl-item">
+        <div class="tl-left"><div class="tl-hanko ${hc}">${hch}</div>${i<checks.length-1?'<div class="tl-line"></div>':''}</div>
+        <div class="tl-body">
+          <div class="tl-head"><span style="font-size:12px;color:var(--sub);font-weight:500">${i===0?'記録時':'照合 #'+i}</span><span style="font-size:11px;color:var(--faint)">${fmt(ck.ts)}</span></div>
+          ${ck.match_level?matchBadge(ck.match_level):''}
+          ${ck.conclusion?`<p style="font-size:13px;margin-top:2px;line-height:1.6">${esc(ck.conclusion)}</p>`:''}
+          ${(ck.facts||[]).length?`<ul class="fact-list" style="font-size:12px">${ck.facts.map(f=>`<li>${esc(f)}</li>`).join('')}</ul>`:''}
+          ${ck.basis?`<span class="basis-tag" style="margin-top:4px">${esc(ck.basis)}</span>`:''}
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`:'';
+
   const rr=S.rres;
+  const rd=S.recheckData||{name:r.name,reason:r.reason,period:r.period||'',anxiety:r.anxiety||''};
+
   return `<button class="back" data-a="home">← ノートに戻る</button>
   <div class="card">
     <div style="display:flex;gap:14px;align-items:center;margin-bottom:12px">
@@ -386,12 +431,13 @@ function pDetail(){
     </div>
     <p class="lbl">${isMio?'見送りの理由':'あなたの理由'}</p>
     <div class="quote">「${esc(r.reason)}」</div>
-    ${(r.checks&&r.checks[0]&&r.checks[0].match_level)?`<p class="lbl" style="margin-top:10px">記録時の照合判定</p>${matchBadge(r.checks[0].match_level)}`:''}
+    ${(checks[0]&&checks[0].match_level)?`<p class="lbl" style="margin-top:10px">記録時の照合判定</p>${matchBadge(checks[0].match_level)}`:''}
     ${r.signal?`<p class="lbl" style="margin-top:10px">見直しサイン</p><p style="font-size:14px">${esc(r.signal)}</p>`:''}
-    ${(r.checks&&r.checks[0]&&(r.checks[0].watch_points||[]).length)?`<p class="lbl" style="margin-top:10px">定点観測ポイント</p><ul class="watch-list">${r.checks[0].watch_points.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''}
+    ${(checks[0]&&(checks[0].watch_points||[]).length)?`<p class="lbl" style="margin-top:10px">定点観測ポイント</p><ul class="watch-list">${checks[0].watch_points.map(w=>`<li>${esc(w)}</li>`).join('')}</ul>`:''}
     ${r.anxiety?`<p class="lbl" style="margin-top:10px">記録した不安</p><p style="font-size:14px">${esc(r.anxiety)}</p>`:''}
   </div>
   ${S.err?`<div class="err">${esc(S.err)}</div>`:''}
+  ${isMio&&!rr?`<button class="btn" data-a="recheck" ${S.rloading?'disabled':''}>${S.rloading?'<span class="spinner"></span>確認中…':'答え合わせをする'}</button>`:''}
   ${rr?`<div class="card">
     <p class="lbl">${isMio?'答え合わせ ── 見送ったあと、何が起きたか':'最新の照合結果'}</p>
     ${!isMio&&rr.match_level?matchBadge(rr.match_level):''}
@@ -404,8 +450,7 @@ function pDetail(){
       <button class="stamp-btn shaky" data-st="揺らいでる">揺らいでる</button>
       <button class="stamp-btn broken" data-st="崩れた">崩れた</button>
     </div>`:`<button class="btn quiet" data-a="re-close" style="margin-top:8px">記録して閉じる</button>`}
-  </div>`
-  :`<button class="btn" data-a="recheck" ${S.rloading?'disabled':''}>${S.rloading?'<span class="spinner"></span>確認中…':(isMio?'答え合わせをする':'もう一度照合する')}</button>`}
+  </div>`:''}
   ${!isMio?`<div class="card">
     <p class="lbl">判子を変更する（いまの理由の状態）</p>
     <div class="stamp-row">
@@ -416,7 +461,19 @@ function pDetail(){
     </div>
     <p class="hint">「崩れたな」と感じたら、照合しなくてもここで判子を変えられます。変更は履歴に残ります。</p>
   </div>`:''}
-  ${hist?`<div class="card"><p class="lbl">照合の履歴</p>${hist}</div>`:''}
+  ${histHtml}
+  ${!isMio?`
+    ${S.recheckOpen?`<div class="card">
+      <p class="lbl" style="margin-bottom:12px">理由を変えて再照合</p>
+      <div class="field"><p class="lbl">銘柄名</p><input id="rc-name" value="${esc(rd.name)}"></div>
+      <div class="field"><p class="lbl">投資の理由</p><textarea id="rc-reason" rows="3">${esc(rd.reason)}</textarea></div>
+      <div class="field"><p class="lbl">保有期間（任意）</p><div class="chips">${PERIODS.map(p=>`<button class="chip${rd.period===p?' on':''}" data-rper="${esc(p)}">${esc(p)}</button>`).join('')}</div></div>
+      <div class="field"><p class="lbl">不安なこと（任意）</p><textarea id="rc-anxiety" rows="2">${esc(rd.anxiety)}</textarea></div>
+      <button class="btn" data-a="recheck-submit" ${S.rloading?'disabled':''}>${S.rloading?'<span class="spinner"></span>確認中…':'この内容で照合する'}</button>
+      <button class="btn quiet" data-a="recheck-close">キャンセル</button>
+    </div>`
+    :`<button class="btn ghost" data-a="recheck-open" ${S.rloading?'disabled':''}>理由を変えて再照合する</button>`}
+  `:''}
   <button class="btn quiet" data-a="del">この記録を削除</button>`;
 }
 function bind(){
@@ -432,6 +489,7 @@ function bind(){
   document.querySelectorAll('[data-st]').forEach(el=>el.onclick=()=>stamp(el.dataset.st));
   document.querySelectorAll('[data-cst]').forEach(el=>el.onclick=()=>{gConfirm();S.d.stamp=el.dataset.cst;render()});
   document.querySelectorAll('[data-mst]').forEach(el=>el.onclick=()=>manualStamp(el.dataset.mst));
+  document.querySelectorAll('[data-rper]').forEach(el=>el.onclick=()=>{if(!S.recheckData)S.recheckData={};S.recheckData.period=el.dataset.rper;render()});
 }
 function gForm(){
   const fn=document.getElementById('fn'),fr=document.getElementById('fr'),fa=document.getElementById('fa');
@@ -444,15 +502,28 @@ function gConfirm(){
   if(fs)S.d.customSignal=fs.value.trim();
 }
 async function act(a){
-  if(a==='login'){
+  if(a==='send-otp'){
     const f=document.getElementById('lemail');
     const email=f?f.value.trim():'';
     if(!email){S.err='メールアドレスを入力してください。';render();return}
     S.err=null;
-    const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin}});
-    S.loginMsg=error?null:'ログインリンクを送りました。メールを確認してください。';
-    S.err=error?'送信に失敗しました。アドレスを確認してください。':null;
+    const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:true}});
+    if(error){S.err='送信に失敗しました。アドレスを確認してください。';render();return;}
+    S.loginEmail=email;S.loginStep='otp';
+    S.loginMsg='6桁のコードを送りました。メールを確認してください。';
     render();
+  }
+  else if(a==='verify-otp'){
+    const f=document.getElementById('lotp');
+    const token=f?f.value.trim():'';
+    if(!token||token.length!==6){S.err='6桁のコードを入力してください。';render();return}
+    S.err=null;
+    const {error}=await sb.auth.verifyOtp({email:S.loginEmail,token,type:'email'});
+    if(error){S.err='コードが正しくありません。もう一度確認してください。';render();return;}
+    S.loginStep='email';S.loginMsg=null;
+  }
+  else if(a==='back-email'){
+    S.loginStep='email';S.loginMsg=null;S.err=null;render();
   }
   else if(a==='logout'){await sb.auth.signOut();S.session=null;S.recs=[];render()}
   else if(a==='new'){S.d={name:'',reason:'',period:'',anxiety:'',signal:'',customSignal:'',stamp:'生きてる'};S.res=null;S.err=null;S.info=null;S.notifSaved=false;S.view='form';render()}
@@ -483,6 +554,13 @@ async function act(a){
     }
   }
   else if(a==='recheck'){await doRecheck()}
+  else if(a==='recheck-open'){
+    const r=S.recs.find(x=>String(x.id)===String(S.did));
+    S.recheckData={name:r?r.name:'',reason:r?r.reason:'',period:r?r.period||'':'',anxiety:r?r.anxiety||'':''};
+    S.recheckOpen=true;render();
+  }
+  else if(a==='recheck-close'){S.recheckOpen=false;S.recheckData=null;render()}
+  else if(a==='recheck-submit'){gRecheck();await doRecheck()}
   else if(a==='re-close'){await pushCheck('答え合わせ');S.rres=null;render()}
   else if(a==='del'){
     if(!confirm('この記録を削除します。照合の履歴も消えますが、よろしいですか？'))return;
@@ -497,12 +575,20 @@ async function doCheck(){
   catch(e){S.err=e.message;S.view='form'}
   render();
 }
+function gRecheck(){
+  const n=document.getElementById('rc-name'),r=document.getElementById('rc-reason'),a=document.getElementById('rc-anxiety');
+  if(!S.recheckData)S.recheckData={};
+  if(n)S.recheckData.name=n.value.trim();
+  if(r)S.recheckData.reason=r.value.trim();
+  if(a)S.recheckData.anxiety=a.value.trim();
+}
 async function doRecheck(){
   const r=S.recs.find(x=>String(x.id)===String(S.did));
+  const d=S.recheckData?{...r,...S.recheckData}:r;
   S.rloading=true;S.err=null;render();
-  try{S.rres=await api('recheck',r)}
+  try{S.rres=await api('recheck',d)}
   catch(e){S.err=e.message}
-  S.rloading=false;render();
+  S.rloading=false;S.recheckOpen=false;render();
 }
 async function persist(decision,mioWhy){
   const d=S.d,r=S.res||{};
