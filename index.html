@@ -734,9 +734,14 @@ async function act(a){
     const isSignup=(S.loginTab||'login')==='signup';
     const {error}=await sb.auth.signInWithOtp({email,options:{shouldCreateUser:isSignup}});
     if(error){
-      S.err=(!isSignup&&/not allowed|signups|not found/i.test(error.message||''))
-        ?'このメールアドレスは未登録です。「新規登録」タブからご登録ください。'
-        :'送信に失敗しました。アドレスを確認してください。';
+      const msg=error.message||'';
+      if(!isSignup&&/not allowed|signups|not found/i.test(msg)){
+        S.err='このメールアドレスは未登録です。「新規登録」タブからご登録ください。';
+      }else if(/rate limit|too many|seconds/i.test(msg)){
+        S.err='メール送信の回数制限に達しました。1時間ほど待ってからお試しください。';
+      }else{
+        S.err=`送信に失敗しました（${msg}）。アドレスを確認してください。`;
+      }
       render();return;
     }
     S.loginEmail=email;S.loginStep='otp';
