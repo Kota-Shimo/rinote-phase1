@@ -139,6 +139,15 @@ h2{font-family:var(--serif);font-size:18px;font-weight:600;margin-bottom:14px}
 .stamp-pill.sel.alive{background:var(--alive-bg);font-weight:600}
 .stamp-pill.sel.shaky{background:var(--shaky-bg);font-weight:600}
 .stamp-pill.sel.broken{background:var(--broken-bg);font-weight:600}
+.port-bar{display:flex;height:18px;border-radius:9px;overflow:hidden;border:1px solid var(--line);margin:10px 0 8px}
+.port-seg{height:100%}
+.health-line{display:flex;gap:14px;font-size:12px;color:var(--sub);margin-bottom:4px}
+.health-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:1px}
+.karte-q{font-size:12px;font-weight:600;color:var(--indigo);margin-bottom:6px;letter-spacing:.04em}
+.exit-card{border-left:3px solid var(--broken)}
+.hold-meta{font-size:12px;color:var(--sub);margin-top:4px}
+.hold-edit-link{background:none;border:none;font-size:11px;color:var(--sub);text-decoration:underline;cursor:pointer;font-family:var(--sans);padding:0;margin-top:4px}
+.port-sep{font-size:11px;color:var(--faint);letter-spacing:.06em;margin:14px 2px 4px}
 @media(prefers-reduced-motion:reduce){.spinner{animation:none}}
 </style>
 </head>
@@ -157,7 +166,7 @@ const BROKERS=[
   ['楽天証券','https://www.rakuten-sec.co.jp/'],
   ['マネックス証券','https://www.monex.co.jp/']
 ];
-let S={session:null,recs:[],view:'list',d:null,res:null,err:null,info:null,did:null,rres:null,rloading:false,notifSaved:false,loginMsg:null,remaining:null,loginStep:'email',loginEmail:'',loginTab:'login',recheckOpen:false,recheckData:null,filter:'all'};
+let S={session:null,recs:[],view:'list',d:null,res:null,err:null,info:null,did:null,rres:null,rloading:false,notifSaved:false,loginMsg:null,remaining:null,loginStep:'email',loginEmail:'',loginTab:'login',recheckOpen:false,recheckData:null,filter:'all',histOpen:false,holdEdit:false,tab:'note'};
 
 function fmt(ts){const d=new Date(ts);return d.getFullYear()+'.'+(d.getMonth()+1)+'.'+d.getDate()}
 function esc(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -294,15 +303,89 @@ function pList(){
   }
 
   const f=S.filter||'all';
+  const hasHold=S.recs.some(r=>r.qty>0&&r.decision!=='見送り');
+  const tab=hasHold?(S.tab||'note'):'note';
+
+  const tabsHtml=hasHold?`<div class="filter-tabs">
+    <button class="filter-tab${tab==='port'?' on':''}" data-a="tab-port">ポートフォリオ</button>
+    <button class="filter-tab${tab==='note'?' on':''}" data-a="tab-note">ノート</button>
+  </div>`:'';
+
+  let mainHtml;
+  if(tab==='port'){
+    const holds=S.recs.filter(r=>r.qty>0&&r.decision!=='見送り').map(r=>({r,v:r.qty*(r.avg_price||0)}));
+    const total=holds.reduce((s,h)=>s+h.v,0)||1;
+    const segColor={alive:'var(--alive)',shaky:'var(--shaky)',broken:'var(--broken)',none:'var(--faint)',skip:'var(--faint)'};
+    const counts={'生きてる':0,'揺らいでる':0,'崩れた':0};
+    holds.forEach(h=>{const s=lastStatus(h.r);if(counts[s]!=null)counts[s]++});
+    const barHtml=`<div class="port-bar">${holds.map(h=>{
+      const[hc]=hanko(h.r);
+      return `<div class="port-seg" style="width:${(h.v/total*100).toFixed(2)}%;background:${segColor[hc]||'var(--faint)'}"></div>`;
+    }).join('')}</div>`;
+    const fmtV=v=>v>=10000?(v/10000).toFixed(1)+'万円':Math.round(v).toLocaleString()+'円';
+    const rowsHtml=holds.slice().sort((a,b)=>b.v-a.v).map(h=>{
+      const r=h.r;
+      const[c,ch]=hanko(r);
+      const checks=r.checks||[];
+      const lastCheck=checks.length?checks[checks.length-1]:null;
+      let dotCls='na';
+      if(lastCheck&&lastCheck.match_level){
+        if(lastCheck.match_level==='一致')dotCls='ok';
+        else if(lastCheck.match_level==='一部一致')dotCls='part';
+        else if(lastCheck.match_level==='現時点の開示とは一致しない')dotCls='ng';
+      }
+      return `<div class="note-row" data-id="${r.id}">
+        <div class="hanko ${c}">${ch}</div>
+        <div class="nm">
+          <p class="nm-name">${esc(r.name)}</p>
+          <p class="nm-reason">「${esc(r.reason)}」</p>
+          <p class="nm-meta">${fmtV(h.v)}</p>
+        </div>
+        <div class="row-right">
+          <span style="font-weight:600;font-size:14px">${(h.v/total*100).toFixed(1)}%</span>
+          ${(lastCheck&&lastCheck.match_level)?`<span class="match-dot ${dotCls}"></span>`:''}
+        </div>
+      </div>`;
+    }).join('');
+    const others=S.recs.filter(r=>!(r.qty>0)&&r.decision!=='見送り');
+    const othersHtml=others.length?`<p class="port-sep">保有情報のない記録</p>
+    <div class="card" style="padding:6px 16px">${others.slice().reverse().map(r=>{
+      const[c,ch]=hanko(r);
+      return `<div class="note-row" data-id="${r.id}">
+        <div class="hanko ${c}">${ch}</div>
+        <div class="nm">
+          <p class="nm-name">${esc(r.name)}</p>
+          <p class="nm-reason">「${esc(r.reason)}」</p>
+          <p class="nm-meta">${fmt(r.created_at)}</p>
+        </div>
+      </div>`;
+    }).join('')}</div>`:'';
+    mainHtml=`<div class="card">
+      <p class="sec-label">理由の健康状態</p>
+      ${barHtml}
+      <div class="health-line">
+        <span><span class="health-dot" style="background:var(--alive)"></span>生きてる ${counts['生きてる']}</span>
+        <span><span class="health-dot" style="background:var(--shaky)"></span>揺らいでる ${counts['揺らいでる']}</span>
+        <span><span class="health-dot" style="background:var(--broken)"></span>崩れた ${counts['崩れた']}</span>
+      </div>
+    </div>
+    <div class="card" style="padding:6px 16px">${rowsHtml}</div>
+    ${othersHtml}
+    <p class="hint" style="text-align:center">構成比は取得単価ベースの概算です。最新の株価は反映されません。</p>`;
+  }else{
+    mainHtml=`${S.recs.length?`<div class="filter-tabs">
+      <button class="filter-tab${f==='all'?' on':''}" data-a="filter-all">すべて</button>
+      <button class="filter-tab${f==='active'?' on':''}" data-a="filter-active">検討中</button>
+      <button class="filter-tab${f==='skip'?' on':''}" data-a="filter-skip">見送り</button>
+    </div>`:''}
+    <div class="card" style="padding:6px 16px">${body}</div>
+    ${S.recs.length?`<p class="hint" style="text-align:center">判子の意味 ── 生：理由が生きてる ・ 揺：揺らいでる ・ 崩：崩れた ・ 見送：見送り</p>`:''}`;
+  }
+
   return `<header><h1>投資理由ノート</h1><div class="hr"><span>RINOTE</span><button data-a="logout">ログアウト</button></div></header>
   ${S.info?`<div class="info">${esc(S.info)}</div>`:''}
-  ${S.recs.length?`<div class="filter-tabs">
-    <button class="filter-tab${f==='all'?' on':''}" data-a="filter-all">すべて</button>
-    <button class="filter-tab${f==='active'?' on':''}" data-a="filter-active">検討中</button>
-    <button class="filter-tab${f==='skip'?' on':''}" data-a="filter-skip">見送り</button>
-  </div>`:''}
-  <div class="card" style="padding:6px 16px">${body}</div>
-  ${S.recs.length?`<p class="hint" style="text-align:center">判子の意味 ── 生：理由が生きてる ・ 揺：揺らいでる ・ 崩：崩れた ・ 見送：見送り</p>`:''}
+  ${tabsHtml}
+  ${mainHtml}
   <p class="foot">本アプリは投資助言ではありません。売買の推奨・株価予測は行いません。</p>
   <button class="btn fab" data-a="new">銘柄を記録する</button>`;
 }
@@ -444,6 +527,13 @@ function pConfirm(){
     <div class="quote">「${esc(d.reason)}」</div>
   </div>
   <div class="card">
+    <p class="lbl">照合結果を見て、最終的にどう考えましたか？</p>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
+      ${['考えは変わらない。理由の通りに進む','不安は残るが、データを確認して納得した','予想と違う点もあったが、それでも進めたい'].map(t=>`<button class="chip wide${d.finalThought===t?' on':''}" data-fth="${esc(t)}">${esc(t)}</button>`).join('')}
+    </div>
+    <textarea id="ffth" rows="2" placeholder="自分の言葉で書く（任意）：照合を見て考えたこと、決め手になったこと">${esc(d.customThought||'')}</textarea>
+  </div>
+  <div class="card">
     <p class="lbl">何が起きたら見直しますか（売却を考える条件）<span style="color:var(--broken);margin-left:4px">必須</span></p>
     ${sigs.length?`<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
       ${sigs.map(s=>`<button class="chip wide${d.signal===s?' on':''}" data-sig="${esc(s)}">${esc(s)}</button>`).join('')}
@@ -460,6 +550,14 @@ function pConfirm(){
       }).join('')}
     </div>
     <p class="hint">照合した直後なら「生きてる」のままで大丈夫です。記録したあとでも、いつでも変更できます。</p>
+  </div>
+  <div class="card">
+    <p class="lbl">実際に購入しましたか？（任意・あとからでも入力できます）</p>
+    <div style="display:flex;gap:8px">
+      <input id="fqty" type="number" placeholder="株数 例：100" value="${d.qty!=null?d.qty:''}">
+      <input id="fprice" type="number" placeholder="取得単価 例：2800" value="${d.avgPrice!=null?d.avgPrice:''}">
+    </div>
+    <p class="hint">入力するとポートフォリオ画面で構成比が見られます。</p>
   </div>
   <button class="btn" data-a="final-save">ノートに記録する</button>`;
 }
@@ -478,10 +576,8 @@ function pDetail(){
   const checks=r.checks||[];
   const lastCheck=checks.length?checks[checks.length-1]:null;
 
-  // Timeline (oldest → newest)
-  const histHtml=checks.length?`<div class="card">
-    <p class="lbl">照合の記録（${checks.length}回）</p>
-    ${checks.map((ck,i)=>{
+  // Timeline (oldest → newest), collapsed by default
+  const tlInner=checks.map((ck,i)=>{
       const[hc,hch]=tlHanko(ck.status);
       return `<div class="tl-item">
         <div class="tl-left"><div class="tl-hanko ${hc}">${hch}</div>${i<checks.length-1?'<div class="tl-line"></div>':''}</div>
@@ -494,7 +590,13 @@ function pDetail(){
           ${ck.basis?`<span class="basis-tag" style="margin-top:4px">${esc(ck.basis)}</span>`:''}
         </div>
       </div>`;
-    }).join('')}
+    }).join('');
+  const histHtml=checks.length?`<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <p class="karte-q" style="margin-bottom:0">📖 考えの変遷（${checks.length}回）</p>
+      <button class="hold-edit-link" data-a="hist-toggle">${S.histOpen?'閉じる ▴':'開く ▾'}</button>
+    </div>
+    ${S.histOpen?`<div style="margin-top:10px">${tlInner}</div>`:''}
   </div>`:'';
 
   const rr=S.rres;
@@ -503,9 +605,23 @@ function pDetail(){
   // latest check match badge for header
   const latestMatchBadge=(lastCheck&&lastCheck.match_level)?matchBadge(lastCheck.match_level):'';
 
+  const holdHtml=S.holdEdit
+    ?`<div style="margin-top:10px">
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input id="hqty" type="number" placeholder="株数 例：100" value="${r.qty!=null?r.qty:''}">
+        <input id="hprice" type="number" placeholder="取得単価 例：2800" value="${r.avg_price!=null?r.avg_price:''}">
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" style="margin-bottom:0" data-a="hold-save">保存する</button>
+        <button class="btn quiet" style="margin-bottom:0" data-a="hold-cancel">キャンセル</button>
+      </div>
+    </div>`
+    :`${r.qty?`<p class="hold-meta">保有：${Number(r.qty).toLocaleString()}株 ・ 取得単価 ${Number(r.avg_price||0).toLocaleString()}円 ・ 約${Math.round(r.qty*(r.avg_price||0)/10000).toLocaleString()}万円</p>`:''}
+    <button class="hold-edit-link" data-a="hold-edit">保有情報を編集</button>`;
+
   return `<button class="back" data-a="home">← ノートに戻る</button>
   <div class="card">
-    <div class="detail-header">
+    <div class="detail-header" style="margin-bottom:0">
       <div class="detail-hanko ${c}">${ch}</div>
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -513,10 +629,9 @@ function pDetail(){
           ${latestMatchBadge}
         </div>
         <p style="font-size:12px;color:var(--faint);margin-top:2px">${fmt(r.created_at)}${r.period?' ・ '+r.period:''} ・ 照合${checks.length}回</p>
+        ${!isMio?holdHtml:''}
       </div>
     </div>
-    <div class="quote">「${esc(r.reason)}」</div>
-    ${r.signal?`<p style="font-size:13px;color:var(--sub);margin-top:8px">↩ ${esc(r.signal)}</p>`:''}
     ${!isMio?`<div class="stamp-pills">
       ${['生きてる','揺らいでる','崩れた'].map((s,i)=>{
         const cls=['alive','shaky','broken'][i];
@@ -524,8 +639,6 @@ function pDetail(){
       }).join('')}
     </div>
     <p class="hint" style="margin-top:6px">判子を変えると履歴に残ります</p>`:''}
-    ${(checks[0]&&(checks[0].watch_points||[]).length)?`<div style="margin-top:12px"><p class="lbl">定点観測ポイント</p>${watchItems(checks[0].watch_points)}</div>`:''}
-    ${r.anxiety?`<p style="font-size:12px;color:var(--faint);margin-top:10px">記録した不安：${esc(r.anxiety)}</p>`:''}
   </div>
   ${S.err?`<div class="err">${esc(S.err)}</div>`:''}
   ${isMio&&!rr?`<button class="btn" data-a="recheck" ${S.rloading?'disabled':''}>${S.rloading?'<span class="spinner"></span>確認中…':'答え合わせをする'}</button>`:''}
@@ -542,6 +655,27 @@ function pDetail(){
       <button class="stamp-btn shaky" data-st="揺らいでる">揺らいでる</button>
       <button class="stamp-btn broken" data-st="崩れた">崩れた</button>
     </div>`:`<button class="btn quiet" data-a="re-close" style="margin-top:8px">記録して閉じる</button>`}
+  </div>`:''}
+  <div class="card">
+    <p class="karte-q">❓ ${isMio?'なぜ見送った？':'なぜ買った？'}</p>
+    <div class="quote">「${esc(r.reason)}」</div>
+    ${(checks[0]&&checks[0].match_level)?matchBadge(checks[0].match_level):''}
+  </div>
+  ${r.final_thought?`<div class="card">
+    <p class="karte-q">💭 照合を見て、どう考えた？</p>
+    <p style="font-size:14px">${esc(r.final_thought)}</p>
+  </div>`:''}
+  ${r.anxiety?`<div class="card">
+    <p class="karte-q">🤔 買うとき、何が不安だった？</p>
+    <p style="font-size:14px">${esc(r.anxiety)}</p>
+  </div>`:''}
+  ${(!isMio&&r.signal)?`<div class="card exit-card">
+    <p class="karte-q">🚪 どうなったら手放す？</p>
+    <p style="font-size:15px;font-weight:500">${esc(r.signal)}</p>
+  </div>`:''}
+  ${(checks[0]&&(checks[0].watch_points||[]).length)?`<div class="card">
+    <p class="karte-q">👀 ふだん何を見ておく？</p>
+    ${watchItems(checks[0].watch_points)}
   </div>`:''}
   ${histHtml}
   ${!isMio?`
@@ -560,7 +694,7 @@ function pDetail(){
 }
 function bind(){
   document.querySelectorAll('[data-a]').forEach(el=>el.onclick=()=>act(el.dataset.a));
-  document.querySelectorAll('[data-id]').forEach(el=>el.onclick=()=>{S.did=el.dataset.id;S.err=null;S.info=null;S.rres=null;S.view='detail';render()});
+  document.querySelectorAll('[data-id]').forEach(el=>el.onclick=()=>{S.did=el.dataset.id;S.err=null;S.info=null;S.rres=null;S.histOpen=false;S.holdEdit=false;S.view='detail';render()});
   document.querySelectorAll('[data-per]').forEach(el=>el.onclick=()=>{gForm();S.d.period=el.dataset.per;render()});
   document.querySelectorAll('[data-opt]').forEach(el=>el.onclick=()=>{
     const o=el.dataset.opt;
@@ -568,6 +702,7 @@ function bind(){
     render();
   });
   document.querySelectorAll('[data-sig]').forEach(el=>el.onclick=()=>{gConfirm();S.d.signal=S.d.signal===el.dataset.sig?'':el.dataset.sig;render()});
+  document.querySelectorAll('[data-fth]').forEach(el=>el.onclick=()=>{gConfirm();S.d.finalThought=S.d.finalThought===el.dataset.fth?'':el.dataset.fth;render()});
   document.querySelectorAll('[data-st]').forEach(el=>el.onclick=()=>stamp(el.dataset.st));
   document.querySelectorAll('[data-cst]').forEach(el=>el.onclick=()=>{gConfirm();S.d.stamp=el.dataset.cst;render()});
   document.querySelectorAll('[data-mst]').forEach(el=>el.onclick=()=>manualStamp(el.dataset.mst));
@@ -582,6 +717,11 @@ function gForm(){
 function gConfirm(){
   const fs=document.getElementById('fsig');
   if(fs)S.d.customSignal=fs.value.trim();
+  const ft=document.getElementById('ffth');
+  if(ft)S.d.customThought=ft.value.trim();
+  const fq=document.getElementById('fqty'),fp=document.getElementById('fprice');
+  if(fq)S.d.qty=fq.value!==''?parseFloat(fq.value):null;
+  if(fp)S.d.avgPrice=fp.value!==''?parseFloat(fp.value):null;
 }
 async function act(a){
   if(a==='tab-login'){S.loginTab='login';S.err=null;S.loginMsg=null;render()}
@@ -616,7 +756,7 @@ async function act(a){
     S.loginStep='email';S.loginMsg=null;S.err=null;render();
   }
   else if(a==='logout'){await sb.auth.signOut();S.session=null;S.recs=[];render()}
-  else if(a==='new'){S.d={name:'',reason:'',period:'',anxiety:'',signal:'',customSignal:'',stamp:'生きてる'};S.res=null;S.err=null;S.info=null;S.notifSaved=false;S.view='form';render()}
+  else if(a==='new'){S.d={name:'',reason:'',period:'',anxiety:'',signal:'',customSignal:'',stamp:'生きてる',finalThought:'',customThought:'',qty:null,avgPrice:null};S.res=null;S.err=null;S.info=null;S.notifSaved=false;S.view='form';render()}
   else if(a==='home'){S.view='list';S.err=null;render()}
   else if(a==='back-result'){S.view='result';render()}
   else if(a==='go'){gForm();await doCheck()}
@@ -631,9 +771,27 @@ async function act(a){
   else if(a==='final-save'){
     gConfirm();
     if(S.d.customSignal)S.d.signal=S.d.customSignal;
+    if(S.d.customThought)S.d.finalThought=S.d.customThought;
     if(!S.d.signal){S.err='売るときの見直し条件を入力してください。';render();return;}
     S.err=null;
     await persist('記録');
+  }
+  else if(a==='tab-port'){S.tab='port';render()}
+  else if(a==='tab-note'){S.tab='note';render()}
+  else if(a==='hist-toggle'){S.histOpen=!S.histOpen;render()}
+  else if(a==='hold-edit'){S.holdEdit=true;render()}
+  else if(a==='hold-cancel'){S.holdEdit=false;render()}
+  else if(a==='hold-save'){
+    const fq=document.getElementById('hqty'),fp=document.getElementById('hprice');
+    const qty=(fq&&fq.value!=='')?parseFloat(fq.value):null;
+    const avg=(fp&&fp.value!=='')?parseFloat(fp.value):null;
+    const {error}=await sb.from('records').update({qty,avg_price:avg}).eq('id',S.did);
+    if(error&&/column|schema/i.test(error.message||'')){
+      S.err='保有情報の保存にはデータベースの更新（qty・avg_price列の追加）が必要です。';render();return;
+    }
+    if(error){S.err='保有情報の保存に失敗しました。もう一度お試しください。';render();return;}
+    S.err=null;S.holdEdit=false;
+    await loadRecs();render();
   }
   else if(a==='filter-all'){S.filter='all';render()}
   else if(a==='filter-active'){S.filter='active';render()}
@@ -677,14 +835,18 @@ async function doRecheck(){
 }
 async function persist(decision,mioWhy){
   const d=S.d,r=S.res||{};
-  const {error}=await sb.from('records').insert({
+  const base={
     name:d.name,
     reason:decision==='見送り'?mioWhy:d.reason,
     decision,period:d.period||'',anxiety:d.anxiety||'',signal:d.signal||'',
     checks:[{ts:Date.now(),status:decision==='見送り'?'見送り':(d.stamp||'生きてる'),
       conclusion:r.conclusion||'',facts:r.facts||[],basis:r.facts_basis||'',
       match_level:r.match_level||'',watch_points:r.watch_points||[],summary:r.summary||''}]
-  });
+  };
+  let {error}=await sb.from('records').insert({...base,final_thought:d.finalThought||'',qty:d.qty||null,avg_price:d.avgPrice||null});
+  if(error&&/column|schema/i.test(error.message||'')){
+    ({error}=await sb.from('records').insert(base));
+  }
   if(error){S.err='保存に失敗しました。通信環境を確認して、もう一度お試しください。';render();return;}
   await loadRecs();
   S.info=decision==='見送り'
